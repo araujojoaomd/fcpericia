@@ -1433,7 +1433,7 @@ async function salvarMov(){
 async function verificarEncerramento(num){
   const p=processos.find(x=>x.num===num);if(!p)return;if(p.etapa_atual!=='Sentença Proferida')return;
   const rec=alvaras.filter(a=>a.num_processo===num).reduce((s,a)=>s+nv(a.vlr_recebido),0);const hon=nv(p.vlr_honorario);
-  if(hon>0&&rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
+  if(rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
 }
 
 async function reverterParaEtapaAnterior(num){
