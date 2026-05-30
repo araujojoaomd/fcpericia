@@ -128,6 +128,18 @@ tbody tr:nth-child(even){background:#fafafa}
 .filter-select{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none;cursor:pointer}
 .btn-clear-filters{background:none;border:1.5px solid var(--gray3);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
 .sort-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
+.ms-dropdown{position:relative;display:inline-block}
+.ms-btn{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:150px;justify-content:space-between}
+.ms-btn:hover{border-color:var(--blue-l)}
+.ms-dropdown.ms-active .ms-btn{border-color:var(--blue-l);background:var(--blue-ll);color:var(--blue);font-weight:600}
+.ms-btn .ms-caret{font-size:9px;color:var(--muted)}
+.ms-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.ms-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;background:#fff;border:1.5px solid var(--gray3);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:200px;max-width:300px;max-height:280px;overflow-y:auto;padding:4px}
+.ms-dropdown.open .ms-panel{display:block}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:6px 9px;font-size:12px;border-radius:6px;cursor:pointer;color:var(--text)}
+.ms-opt:hover{background:var(--gray)}
+.ms-opt input{cursor:pointer;flex-shrink:0}
+.ms-empty{padding:8px 9px;font-size:11px;color:var(--faint)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
@@ -277,13 +289,10 @@ tbody tr:nth-child(even){background:#fafafa}
         </div>
         <div class="filters">
           <input class="filter-input" id="f-busca" placeholder="Buscar número, autor, réu..." oninput="renderProcessos()">
-          <select class="filter-select" id="f-autor" onchange="renderProcessos()"><option value="">Todos os autores</option></select>
-          <select class="filter-select" id="f-vara" onchange="renderProcessos()"><option value="">Todas as varas</option></select>
-          <select class="filter-select" id="f-etapa-filtro" onchange="renderProcessos()"><option value="">Todas as etapas</option></select>
-          <select class="filter-select" id="f-prazo-filtro" onchange="renderProcessos()">
-            <option value="">Todos os prazos</option><option value="com_prazo">Com prazo</option>
-            <option value="urgente">⚠ Urgente</option><option value="vencido">🔴 Vencido</option>
-          </select>
+          <div class="ms-dropdown" id="ms-f-autor" data-label="Todos os autores"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-autor')"><span class="ms-text">Todos os autores</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-etapa" data-label="Todas as etapas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-etapa')"><span class="ms-text">Todas as etapas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-prazo" data-label="Todos os prazos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-prazo')"><span class="ms-text">Todos os prazos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-proc-campo" onchange="renderProcessos()">
             <option value="">Padrão (Autor A→Z)</option>
@@ -308,10 +317,10 @@ tbody tr:nth-child(even){background:#fafafa}
           <button class="primary-btn btn-green" onclick="abrirModalMov('')">+ Nova Movimentação</button>
         </div>
         <div class="filters">
-          <select class="filter-select" id="fm-processo" onchange="renderMovimentacoes()"><option value="">Todos os processos</option></select>
-          <select class="filter-select" id="fm-autor" onchange="renderMovimentacoes()"><option value="">Todos os autores</option></select>
-          <select class="filter-select" id="fm-vara" onchange="renderMovimentacoes()"><option value="">Todas as varas</option></select>
-          <select class="filter-select" id="fm-tipo" onchange="renderMovimentacoes()"><option value="">Todos os tipos</option></select>
+          <div class="ms-dropdown" id="ms-fm-processo" data-label="Todos os processos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-processo')"><span class="ms-text">Todos os processos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fm-autor" data-label="Todos os autores"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-autor')"><span class="ms-text">Todos os autores</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fm-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fm-tipo" data-label="Todos os tipos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-tipo')"><span class="ms-text">Todos os tipos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-mov-campo" onchange="renderMovimentacoes()">
             <option value="">Padrão (mais recentes)</option>
@@ -339,9 +348,9 @@ tbody tr:nth-child(even){background:#fafafa}
           <button class="primary-btn btn-yellow" onclick="abrirModalAlvara('')">+ Registrar Recebimento</button>
         </div>
         <div class="filters">
-          <select class="filter-select" id="fa-processo" onchange="renderAlvaras()"><option value="">Todos os processos</option></select>
-          <select class="filter-select" id="fa-autor" onchange="renderAlvaras()"><option value="">Todos os autores</option></select>
-          <select class="filter-select" id="fa-vara" onchange="renderAlvaras()"><option value="">Todas as varas</option></select>
+          <div class="ms-dropdown" id="ms-fa-processo" data-label="Todos os processos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-processo')"><span class="ms-text">Todos os processos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fa-autor" data-label="Todos os autores"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-autor')"><span class="ms-text">Todos os autores</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fa-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-alv-campo" onchange="renderAlvaras()">
             <option value="">Padrão</option>
@@ -775,6 +784,51 @@ function renderDashboard(){
   }).join('');
 }
 
+// ─── FILTROS MÚLTIPLOS (checkbox dropdowns) ───────────────────────────────────
+const msSel={};
+const MS_RENDER={
+  'ms-f-autor':()=>renderProcessos(),'ms-f-vara':()=>renderProcessos(),'ms-f-etapa':()=>renderProcessos(),'ms-f-prazo':()=>renderProcessos(),
+  'ms-fm-processo':()=>renderMovimentacoes(),'ms-fm-autor':()=>renderMovimentacoes(),'ms-fm-vara':()=>renderMovimentacoes(),'ms-fm-tipo':()=>renderMovimentacoes(),
+  'ms-fa-processo':()=>renderAlvaras(),'ms-fa-autor':()=>renderAlvaras(),'ms-fa-vara':()=>renderAlvaras()
+};
+function msToggle(ev,id){
+  ev.stopPropagation();
+  const el=document.getElementById(id);if(!el)return;
+  const open=el.classList.contains('open');
+  document.querySelectorAll('.ms-dropdown.open').forEach(d=>d.classList.remove('open'));
+  if(!open)el.classList.add('open');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.ms-dropdown'))document.querySelectorAll('.ms-dropdown.open').forEach(d=>d.classList.remove('open'));});
+function _msEsc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function msPopular(id,items){
+  const el=document.getElementById(id);if(!el)return;
+  const sel=msSel[id]||(msSel[id]=new Set());
+  const norm=items.map(i=>typeof i==='string'?{value:i,label:i}:i);
+  const valid=new Set(norm.map(i=>i.value));
+  [...sel].forEach(v=>{if(!valid.has(v))sel.delete(v);});
+  el.querySelector('.ms-panel').innerHTML=norm.length
+    ?norm.map(i=>`<label class="ms-opt"><input type="checkbox" value="${_msEsc(i.value)}" ${sel.has(i.value)?'checked':''} onchange="msOnChange('${id}',this)"> <span>${_msEsc(i.label)}</span></label>`).join('')
+    :'<div class="ms-empty">Sem opções</div>';
+  msUpdateLabel(id);
+}
+function msOnChange(id,cb){
+  const sel=msSel[id]||(msSel[id]=new Set());
+  if(cb.checked)sel.add(cb.value);else sel.delete(cb.value);
+  msUpdateLabel(id);
+  (MS_RENDER[id]||(()=>{}))();
+}
+function msUpdateLabel(id){
+  const el=document.getElementById(id);if(!el)return;
+  const sel=msSel[id]||new Set();
+  const txt=el.querySelector('.ms-text');
+  if(sel.size===0)txt.textContent=el.dataset.label||'Todos';
+  else if(sel.size===1)txt.textContent=[...sel][0];
+  else txt.textContent=sel.size+' selecionados';
+  el.classList.toggle('ms-active',sel.size>0);
+}
+function msGet(id){return msSel[id]?[...msSel[id]]:[];}
+function msClear(id){if(msSel[id])msSel[id].clear();msUpdateLabel(id);}
+
 // ─── ORDENAÇÃO ────────────────────────────────────────────────────────────────
 function _sortKey(p,campo){
   if(!p)return '';
@@ -805,16 +859,16 @@ function aplicarOrdenacao(arr,getP,campoId,dirId){
 function renderProcessos(){
   const base=processosFiltradosPorPerfil();
   const busca=(document.getElementById('f-busca')||{value:''}).value.toLowerCase();
-  const fAutor=(document.getElementById('f-autor')||{value:''}).value;
-  const fVara=(document.getElementById('f-vara')||{value:''}).value;
-  const fEtapa=(document.getElementById('f-etapa-filtro')||{value:''}).value;
-  const fPrazo=(document.getElementById('f-prazo-filtro')||{value:''}).value;
+  const fAutor=msGet('ms-f-autor');
+  const fVara=msGet('ms-f-vara');
+  const fEtapa=msGet('ms-f-etapa');
+  const fPrazo=msGet('ms-f-prazo');
   let fil=base.filter(p=>{
     if(busca&&![p.num,p.autor,p.reu,p.assunto].join(' ').toLowerCase().includes(busca))return false;
-    if(fAutor&&p.autor!==fAutor)return false;
-    if(fVara&&p.vara!==fVara)return false;
-    if(fEtapa&&p.etapa_atual!==fEtapa)return false;
-    if(fPrazo){const st=statusPrazo(p.data_limite_etapa_atual);if(fPrazo==='com_prazo'&&!p.data_limite_etapa_atual)return false;if(fPrazo==='urgente'&&st!=='urgente')return false;if(fPrazo==='vencido'&&st!=='vencido')return false;}
+    if(fAutor.length&&!fAutor.includes(p.autor))return false;
+    if(fVara.length&&!fVara.includes(p.vara))return false;
+    if(fEtapa.length&&!fEtapa.includes(p.etapa_atual))return false;
+    if(fPrazo.length){const st=statusPrazo(p.data_limite_etapa_atual);const ok=fPrazo.some(tk=>tk==='com_prazo'?!!p.data_limite_etapa_atual:tk===st);if(!ok)return false;}
     return true;
   });
   const ord=aplicarOrdenacao(fil,p=>p,'sort-proc-campo','sort-proc-dir');
@@ -888,15 +942,15 @@ function renderProcessos(){
 // ─── MOVIMENTAÇÕES ────────────────────────────────────────────────────────────
 function renderMovimentacoes(){
   const base=processosFiltradosPorPerfil();const numBase=new Set(base.map(p=>p.num));
-  const fProc=(document.getElementById('fm-processo')||{value:''}).value;
-  const fAutor=(document.getElementById('fm-autor')||{value:''}).value;
-  const fVara=(document.getElementById('fm-vara')||{value:''}).value;
-  const fTipo=(document.getElementById('fm-tipo')||{value:''}).value;
+  const fProc=msGet('ms-fm-processo');
+  const fAutor=msGet('ms-fm-autor');
+  const fVara=msGet('ms-fm-vara');
+  const fTipo=msGet('ms-fm-tipo');
   let fil=[...movs].reverse().filter(m=>{
     if(!numBase.has(m.num_processo))return false;
-    if(fProc&&m.num_processo!==fProc)return false;
-    if(fTipo&&m.tipo!==fTipo)return false;
-    if(fAutor||fVara){const p=processos.find(x=>x.num===m.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
+    if(fProc.length&&!fProc.includes(m.num_processo))return false;
+    if(fTipo.length&&!fTipo.includes(m.tipo))return false;
+    if(fAutor.length||fVara.length){const p=processos.find(x=>x.num===m.num_processo);if(!p)return false;if(fAutor.length&&!fAutor.includes(p.autor))return false;if(fVara.length&&!fVara.includes(p.vara))return false;}
     return true;
   });
   const ordM=aplicarOrdenacao(fil,m=>processos.find(x=>x.num===m.num_processo),'sort-mov-campo','sort-mov-dir');
@@ -934,13 +988,13 @@ function renderMovimentacoes(){
 // ─── ALVARÁS ──────────────────────────────────────────────────────────────────
 function renderAlvaras(){
   const base=processosFiltradosPorPerfil();const numBase=new Set(base.map(p=>p.num));
-  const fProc=(document.getElementById('fa-processo')||{value:''}).value;
-  const fAutor=(document.getElementById('fa-autor')||{value:''}).value;
-  const fVara=(document.getElementById('fa-vara')||{value:''}).value;
+  const fProc=msGet('ms-fa-processo');
+  const fAutor=msGet('ms-fa-autor');
+  const fVara=msGet('ms-fa-vara');
   let fil=alvaras.filter(a=>{
     if(!numBase.has(a.num_processo))return false;
-    if(fProc&&a.num_processo!==fProc)return false;
-    if(fAutor||fVara){const p=processos.find(x=>x.num===a.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
+    if(fProc.length&&!fProc.includes(a.num_processo))return false;
+    if(fAutor.length||fVara.length){const p=processos.find(x=>x.num===a.num_processo);if(!p)return false;if(fAutor.length&&!fAutor.includes(p.autor))return false;if(fVara.length&&!fVara.includes(p.vara))return false;}
     return true;
   });
   const ordA=aplicarOrdenacao(fil,a=>processos.find(x=>x.num===a.num_processo),'sort-alv-campo','sort-alv-dir');
@@ -990,19 +1044,19 @@ function popularFiltros(){
   const autores=[...new Set(base.map(p=>p.autor).filter(Boolean))].sort();
   const varas=[...new Set(base.map(p=>p.vara).filter(Boolean))].sort();
   const nums=[...new Set(base.map(p=>p.num).filter(Boolean))].sort();
-  const setOpts=(id,items,label)=>{const el=document.getElementById(id);if(!el)return;const val=el.value;el.innerHTML=`<option value="">${label}</option>`+items.map(i=>`<option value="${i}">${i}</option>`).join('');el.value=val;};
-  setOpts('f-autor',autores,'Todos os autores');setOpts('f-vara',varas,'Todas as varas');setOpts('f-etapa-filtro',ETAPAS,'Todas as etapas');
-  setOpts('fm-processo',nums,'Todos os processos');setOpts('fm-autor',autores,'Todos os autores');setOpts('fm-vara',varas,'Todas as varas');setOpts('fm-tipo',['Mudança de Etapa','Observação Simples','Diligência'],'Todos os tipos');
-  setOpts('fa-processo',nums,'Todos os processos');setOpts('fa-autor',autores,'Todos os autores');setOpts('fa-vara',varas,'Todas as varas');
+  msPopular('ms-f-autor',autores);msPopular('ms-f-vara',varas);msPopular('ms-f-etapa',ETAPAS);
+  msPopular('ms-f-prazo',[{value:'com_prazo',label:'Com prazo'},{value:'urgente',label:'⚠ Urgente'},{value:'vencido',label:'🔴 Vencido'}]);
+  msPopular('ms-fm-processo',nums);msPopular('ms-fm-autor',autores);msPopular('ms-fm-vara',varas);msPopular('ms-fm-tipo',['Mudança de Etapa','Observação Simples','Diligência']);
+  msPopular('ms-fa-processo',nums);msPopular('ms-fa-autor',autores);msPopular('ms-fa-vara',varas);
   const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
   const selA=document.getElementById('f-assunto');if(selA)selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
   const selP=document.getElementById('f-perito-ass');if(selP)selP.innerHTML='<option value="">Selecione...</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');
   const optsProc='<option value="">Selecione...</option>'+base.map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
   document.getElementById('m-processo').innerHTML=optsProc;document.getElementById('a-processo').innerHTML=optsProc;
 }
-function limparFiltros(){['f-busca','f-autor','f-vara','f-etapa-filtro','f-prazo-filtro'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderProcessos();}
-function limparFiltrosMov(){['fm-processo','fm-autor','fm-vara','fm-tipo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderMovimentacoes();}
-function limparFiltrosAlv(){['fa-processo','fa-autor','fa-vara'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderAlvaras();}
+function limparFiltros(){const b=document.getElementById('f-busca');if(b)b.value='';['ms-f-autor','ms-f-vara','ms-f-etapa','ms-f-prazo'].forEach(msClear);renderProcessos();}
+function limparFiltrosMov(){['ms-fm-processo','ms-fm-autor','ms-fm-vara','ms-fm-tipo'].forEach(msClear);renderMovimentacoes();}
+function limparFiltrosAlv(){['ms-fa-processo','ms-fa-autor','ms-fa-vara'].forEach(msClear);renderAlvaras();}
 
 // ─── TESES ────────────────────────────────────────────────────────────────────
 function carregarTesesParaMov(assunto,selecionadas=[]){
