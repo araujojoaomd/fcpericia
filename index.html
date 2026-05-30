@@ -807,13 +807,13 @@ function renderDashboard(){
   if(!atv.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum processo encontrado.</td></tr>';return;}
   tb.innerHTML=atv.map(p=>{
     const aP=alvaras.filter(a=>a.num_processo===p.num);
-    const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);
+    const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);const pa=paDe(p);
     return`<tr><td class="mono">${p.num}</td><td>${p.autor}</td>
       <td><span class="badge badge-purple">${p.assunto}</span>${p.teses?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${p.teses}</div>`:''}</td>
       <td>${etapaBadge(p.etapa_atual)}${isBool(p.em_diligencia)?'<div class="diligencia-badge" style="margin-top:3px">🔄 Diligência</div>':''}</td>
       <td style="font-size:11px">${p.perito_assistente||'—'}</td>
       <td>${p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):'—'}</td>
-      <td style="font-size:11px"><div style="color:var(--blue)">Dir: ${fmt(dir)}</div><div style="color:var(--muted)">Rec: ${fmt(rec)}</div><div style="color:${sal>0?'var(--red-l)':'var(--green)'}">Sal: ${fmt(sal)}</div></td>
+      <td style="font-size:11px"><div style="color:var(--blue)">Dir: ${fmt(dir)}</div><div style="color:var(--muted)">Rec: ${fmt(rec)}</div><div style="color:${sal>0?'var(--red-l)':'var(--green)'}">Sal: ${fmt(sal)}</div><div style="color:${pa>0?'var(--orange)':'var(--faint)'}">PA: ${fmt(pa)}</div></td>
     </tr>`;
   }).join('');
 }
