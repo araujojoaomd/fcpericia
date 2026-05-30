@@ -774,21 +774,37 @@ function renderDashboard(){
     <div class="${af('vencido')} red" onclick="setDashFiltro('vencido')"><div class="stat-label">🔴 Vencidos</div><div class="stat-value">${vencidos}</div></div>
     <div class="${af('diligencia')} orange" onclick="setDashFiltro('diligencia')"><div class="stat-label">🔄 Em Diligência</div><div class="stat-value">${emDil}</div></div>`;
   document.getElementById('stats-fin').innerHTML=`
-    <div class="stat-card green"><div class="stat-label">Honorários Confirmados</div><div class="stat-value" style="font-size:15px">${fmt(procs.reduce((s,p)=>s+nv(p.vlr_honorario),0))}</div></div>
-    <div class="stat-card blue"><div class="stat-label">Com Direito de Recebimento</div><div class="stat-value" style="font-size:15px">${fmt(totalDir)}</div></div>
-    <div class="stat-card purple"><div class="stat-label">Recebido</div><div class="stat-value" style="font-size:15px">${fmt(totalRec)}</div></div>
-    <div class="stat-card red"><div class="stat-label">Saldo a Receber</div><div class="stat-value" style="font-size:15px">${fmt(saldo)}</div></div>
-    <div class="stat-card orange"><div class="stat-label">A Transferir ao PA</div><div class="stat-value" style="font-size:15px">${fmt(totalPA)}</div></div>`;
+    <div class="${af('hon')} green" onclick="setDashFiltro('hon')"><div class="stat-label">Honorários Confirmados</div><div class="stat-value" style="font-size:15px">${fmt(procs.reduce((s,p)=>s+nv(p.vlr_honorario),0))}</div></div>
+    <div class="${af('direito')} blue" onclick="setDashFiltro('direito')"><div class="stat-label">Com Direito de Recebimento</div><div class="stat-value" style="font-size:15px">${fmt(totalDir)}</div></div>
+    <div class="${af('recebido')} purple" onclick="setDashFiltro('recebido')"><div class="stat-label">Recebido</div><div class="stat-value" style="font-size:15px">${fmt(totalRec)}</div></div>
+    <div class="${af('saldo')} red" onclick="setDashFiltro('saldo')"><div class="stat-label">Saldo a Receber</div><div class="stat-value" style="font-size:15px">${fmt(saldo)}</div></div>
+    <div class="${af('transferir')} orange" onclick="setDashFiltro('transferir')"><div class="stat-label">A Transferir ao PA</div><div class="stat-value" style="font-size:15px">${fmt(totalPA)}</div></div>`;
   const tb=document.getElementById('tbl-dash');
-  let atv=procs.filter(p=>p.etapa_atual!=='Encerrado');
-  if(dashFiltro==='urgente')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente');
-  else if(dashFiltro==='vencido')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido');
-  else if(dashFiltro==='diligencia')atv=atv.filter(p=>isBool(p.em_diligencia));
-  const titulos={'':'Processos Ativos','urgente':'Processos Ativos — ⚠ Urgentes','vencido':'Processos Ativos — 🔴 Vencidos','diligencia':'Processos Ativos — 🔄 Em Diligência'};
+  const recDe=p=>alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);
+  const paDe=p=>alvaras.filter(a=>a.num_processo===p.num&&!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+  const FINANCEIRO=new Set(['hon','direito','recebido','saldo','transferir']);
+  let atv;
+  if(FINANCEIRO.has(dashFiltro)){
+    atv=procs.filter(p=>{
+      const dir=calcDireito(p.vlr_honorario,p.etapa_atual),rec=recDe(p);
+      if(dashFiltro==='hon')return nv(p.vlr_honorario)>0;
+      if(dashFiltro==='direito')return dir>0;
+      if(dashFiltro==='recebido')return rec>0;
+      if(dashFiltro==='saldo')return Math.max(0,dir-rec)>0;
+      if(dashFiltro==='transferir')return paDe(p)>0;
+      return true;
+    });
+  }else{
+    atv=procs.filter(p=>p.etapa_atual!=='Encerrado');
+    if(dashFiltro==='urgente')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente');
+    else if(dashFiltro==='vencido')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido');
+    else if(dashFiltro==='diligencia')atv=atv.filter(p=>isBool(p.em_diligencia));
+  }
+  const titulos={'':'Processos Ativos','urgente':'Processos Ativos — ⚠ Urgentes','vencido':'Processos Ativos — 🔴 Vencidos','diligencia':'Processos Ativos — 🔄 Em Diligência','hon':'Processos — Honorários Confirmados','direito':'Processos — Com Direito de Recebimento','recebido':'Processos — Recebido','saldo':'Processos — Saldo a Receber','transferir':'Processos — A Transferir ao PA'};
   const tt=document.getElementById('dash-tbl-title');if(tt)tt.innerHTML=`${titulos[dashFiltro]||'Processos Ativos'} <span style="color:var(--muted);font-weight:400">(${atv.length})</span>${dashFiltro?' <span style="color:var(--blue);cursor:pointer;font-weight:600;font-size:11px" onclick="setDashFiltro(\'total\')">✕ mostrar todos</span>':''}`;
   const ordD=aplicarOrdenacao(atv,p=>p,'sort-dash-campo','sort-dash-dir');
   atv=ordD||ordenarPorPrazo(atv);
-  if(!atv.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum processo ativo.</td></tr>';return;}
+  if(!atv.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum processo encontrado.</td></tr>';return;}
   tb.innerHTML=atv.map(p=>{
     const aP=alvaras.filter(a=>a.num_processo===p.num);
     const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);
