@@ -324,14 +324,15 @@ tbody tr:nth-child(even){background:#fafafa}
           <div class="ms-dropdown" id="ms-fm-autor" data-label="Todos os autores"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-autor')"><span class="ms-text">Todos os autores</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-fm-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-fm-tipo" data-label="Todos os tipos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fm-tipo')"><span class="ms-text">Todos os tipos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <span class="sort-label">Período:</span>
+          <input class="filter-select" id="fm-data-de" type="date" title="Data inicial" onchange="renderMovimentacoes()">
+          <span style="color:var(--muted);font-size:12px">até</span>
+          <input class="filter-select" id="fm-data-ate" type="date" title="Data final" onchange="renderMovimentacoes()">
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-mov-campo" onchange="renderMovimentacoes()">
             <option value="">Padrão (mais recentes)</option>
-            <option value="data_nomeacao">Data de Nomeação</option>
-            <option value="num">Número do Processo</option>
+            <option value="data">Data</option>
             <option value="autor">Autor</option>
-            <option value="etapa">Etapa</option>
-            <option value="prazo">Prazo</option>
           </select>
           <select class="filter-select" id="sort-mov-dir" onchange="renderMovimentacoes()">
             <option value="asc">Crescente ↑</option>
@@ -977,15 +978,26 @@ function renderMovimentacoes(){
   const fAutor=msGet('ms-fm-autor');
   const fVara=msGet('ms-fm-vara');
   const fTipo=msGet('ms-fm-tipo');
+  const fDe=(document.getElementById('fm-data-de')||{value:''}).value;
+  const fAte=(document.getElementById('fm-data-ate')||{value:''}).value;
   let fil=[...movs].reverse().filter(m=>{
     if(!numBase.has(m.num_processo))return false;
     if(fProc.length&&!fProc.includes(m.num_processo))return false;
     if(fTipo.length&&!fTipo.includes(m.tipo))return false;
+    if(fDe||fAte){const d=String(m.data_registro||'').slice(0,10);if(!d)return false;if(fDe&&d<fDe)return false;if(fAte&&d>fAte)return false;}
     if(fAutor.length||fVara.length){const p=processos.find(x=>x.num===m.num_processo);if(!p)return false;if(fAutor.length&&!fAutor.includes(p.autor))return false;if(fVara.length&&!fVara.includes(p.vara))return false;}
     return true;
   });
-  const ordM=aplicarOrdenacao(fil,m=>processos.find(x=>x.num===m.num_processo),'sort-mov-campo','sort-mov-dir');
-  if(ordM)fil=ordM;
+  const campoM=(document.getElementById('sort-mov-campo')||{value:''}).value;
+  if(campoM){
+    const dirM=((document.getElementById('sort-mov-dir')||{value:'asc'}).value==='desc')?-1:1;
+    fil.sort((a,b)=>{
+      let r;
+      if(campoM==='data')r=String(a.data_registro||'').localeCompare(String(b.data_registro||''));
+      else{const pa=processos.find(x=>x.num===a.num_processo),pb=processos.find(x=>x.num===b.num_processo);r=String(pa?pa.autor:'').localeCompare(String(pb?pb.autor:''),'pt-BR');}
+      return r*dirM;
+    });
+  }
   document.getElementById('mov-count').textContent=movs.length+' registro(s)';
   const tb=document.getElementById('tbl-movs');
   if(!fil.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Nenhuma movimentação.</td></tr>';return;}
@@ -1089,7 +1101,7 @@ function popularFiltros(){
   document.getElementById('m-processo').innerHTML=optsProc;document.getElementById('a-processo').innerHTML=optsProc;
 }
 function limparFiltros(){const b=document.getElementById('f-busca');if(b)b.value='';['ms-f-autor','ms-f-vara','ms-f-etapa','ms-f-prazo'].forEach(msClear);renderProcessos();}
-function limparFiltrosMov(){['ms-fm-processo','ms-fm-autor','ms-fm-vara','ms-fm-tipo'].forEach(msClear);renderMovimentacoes();}
+function limparFiltrosMov(){['ms-fm-processo','ms-fm-autor','ms-fm-vara','ms-fm-tipo'].forEach(msClear);['fm-data-de','fm-data-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderMovimentacoes();}
 function limparFiltrosAlv(){['ms-fa-processo','ms-fa-autor','ms-fa-vara','ms-fa-transf'].forEach(msClear);renderAlvaras();}
 
 // ─── TESES ────────────────────────────────────────────────────────────────────
