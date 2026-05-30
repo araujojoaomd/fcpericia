@@ -393,7 +393,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <div class="modal-head"><div class="modal-title" id="modal-proc-title">Novo Processo</div><button class="modal-close" onclick="fecharModal('modal-processo')">✕</button></div>
     <div class="form-grid">
       <div class="form-field"><label class="field-label">Nº do Processo *</label><input class="field-input" id="f-num"><div id="f-num-aviso" style="display:none;margin-top:4px;color:var(--red);font-size:11px"></div></div>
-      <div class="form-field half"><label class="field-label">Assunto</label><select class="field-select" id="f-assunto"></select></div>
+      <div class="form-field half"><label class="field-label">Assunto</label><select class="field-select" id="f-assunto" onchange="onChangeAssuntoProc()"></select></div>
       <div class="form-field half"><label class="field-label">Perito Assistente</label><select class="field-select" id="f-perito-ass"><option value="">Selecione...</option></select></div>
       <div class="form-field"><label class="field-label">Autor</label><input class="field-input" id="f-autor-proc"></div>
       <div class="form-field"><label class="field-label">Réu</label><input class="field-input" id="f-reu"></div>
@@ -403,8 +403,10 @@ tbody tr:nth-child(even){background:#fafafa}
       <div class="form-field"><label class="field-label">Adv. Réu</label><input class="field-input" id="f-adv-reu"></div>
       <div class="form-field half"><label class="field-label">Valor da Causa (R$)</label><input class="field-input" id="f-vlr-causa" type="number" step="0.01"></div>
       <div class="form-field half"><label class="field-label">Honorários Confirmados (R$)</label><input class="field-input" id="f-vlr-hon" type="number" step="0.01"></div>
+      <div class="form-field half"><label class="field-label">Valor da Proposta do Perito (R$)</label><input class="field-input" id="f-vlr-proposta" type="number" step="0.01"></div>
       <div class="form-field half"><label class="field-label">Data de Nomeação</label><input class="field-input" id="f-data-nom" type="date"></div>
       <div class="form-field half"><label class="check-label" style="padding-top:20px"><input type="checkbox" id="f-gratuidade"> Gratuidade Judiciária</label></div>
+      <div class="form-field"><label class="field-label">Teses Pleiteadas</label><div id="f-teses-checkboxes" class="teses-grid"></div></div>
       <div class="form-field"><label class="field-label">Etapa Atual</label><div class="field-readonly" id="f-etapa-display">Apresentar Proposta de Honorários</div><div style="font-size:10px;color:var(--faint);margin-top:3px">⚠ A etapa só pode ser alterada via movimentação</div></div>
     </div>
     <div class="modal-footer">
@@ -1067,6 +1069,14 @@ function carregarTesesParaMov(assunto,selecionadas=[]){
 }
 function toggleTese(el){el.classList.toggle('selected');}
 function getTesesSelecionadas(){return[...document.querySelectorAll('#m-teses-checkboxes .tese-chip.selected')].map(el=>el.dataset.tese);}
+function carregarTesesProc(assunto,selecionadas=[]){
+  const lista=teses.filter(t=>t.assunto===assunto&&isBool(t.ativo));
+  const c=document.getElementById('f-teses-checkboxes');if(!c)return;
+  if(!lista.length){c.innerHTML='<span style="color:var(--faint);font-size:11px">Nenhuma tese cadastrada para este assunto.</span>';return;}
+  c.innerHTML=lista.map(t=>`<span class="tese-chip${selecionadas.includes(t.tese)?' selected':''}" data-tese="${t.tese}" onclick="toggleTese(this)">${t.tese}</span>`).join('');
+}
+function getTesesProc(){return[...document.querySelectorAll('#f-teses-checkboxes .tese-chip.selected')].map(el=>el.dataset.tese);}
+function onChangeAssuntoProc(){carregarTesesProc(document.getElementById('f-assunto').value,[]);}
 
 // ─── MODAIS ───────────────────────────────────────────────────────────────────
 function abrirModal(id){document.getElementById(id).classList.add('open');}
@@ -1084,6 +1094,7 @@ function abrirModalProcesso(modo,num){
   if(modo==='novo'){
     ['f-num','f-autor-proc','f-reu','f-vara-proc','f-juiz','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f-perito-ass').value='';document.getElementById('f-data-nom').value='';document.getElementById('f-gratuidade').checked=false;
+    document.getElementById('f-vlr-proposta').value='';carregarTesesProc(selA.value,[]);
     document.getElementById('f-etapa-display').textContent='Apresentar Proposta de Honorários';
   }else{
     const p=processos.find(x=>x.num===num);if(!p)return;
@@ -1093,6 +1104,8 @@ function abrirModalProcesso(modo,num){
     document.getElementById('f-vlr-causa').value=String(p.vlr_causa).replace(',','.');document.getElementById('f-vlr-hon').value=String(p.vlr_honorario).replace(',','.');
     document.getElementById('f-data-nom').value=p.data_nomeacao||'';document.getElementById('f-gratuidade').checked=isBool(p.gratuidade);
     document.getElementById('f-perito-ass').value=p.perito_assistente||'';document.getElementById('f-etapa-display').textContent=p.etapa_atual||'Apresentar Proposta de Honorários';
+    document.getElementById('f-vlr-proposta').value=String(p.vlr_proposta||'').replace(',','.');
+    carregarTesesProc(p.assunto||'',(p.teses||'').split(',').map(s=>s.trim()).filter(Boolean));
   }
   abrirModal('modal-processo');
 }
@@ -1369,7 +1382,7 @@ async function salvarProcesso(){
   }
   document.getElementById('f-num-aviso').style.display='none';
   const existente=modoProc==='editar'?processos.find(p=>p.num===num):null;
-  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:existente?existente.teses||'':'',vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:existente?existente.vlr_proposta||'':''};
+  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:getTesesProc().join(', '),vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:document.getElementById('f-vlr-proposta').value};
   const btn=document.getElementById('btn-salvar-proc');btn.disabled=true;btn.textContent='⏳ Salvando...';
   try{
     if(modoProc==='novo'){await sheetsAppend('processos!A:R',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
