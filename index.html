@@ -1333,7 +1333,27 @@ function verDetalhe(num){
         ${isBool(m.tem_prazo)?`<div style="color:var(--yellow-l);font-size:10px">⏰ ${fmtD(m.data_limite)} (${m.prazo_dias} dias úteis)</div>`:''}
         ${isDil?`<div style="color:var(--orange);font-size:10px">Início: ${fmtD(m.data_inicio_diligencia)} ${m.data_fim_diligencia?'/ Fim: '+fmtD(m.data_fim_diligencia):'— Em aberto'} ${m.dias_diligencia?'('+m.dias_diligencia+' dias úteis)':''}</div>`:''}
       </div>`;
-    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhuma movimentação.</div>'}`;
+    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhuma movimentação.</div>'}
+    <div class="section-label">Histórico de Honorários</div>
+    ${aP.length?aP.map(a=>{
+      const realIdx=alvaras.indexOf(a);
+      const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;
+      const liq=nv(a.vlr_recebido)*(1-imp/100);const pa=liq*(rep/100);
+      return`<div class="hist-item">
+        <div class="hist-head">
+          <span style="color:var(--faint)">${fmtD(a.data_recebimento)}</span>
+          <span class="badge badge-yellow">${a.perc_alvara}% alvará</span>
+          <span style="font-weight:700;color:var(--green);font-size:11px">${fmt(a.vlr_recebido)}</span>
+          ${isBool(a.transferido_pa)?'<span class="badge badge-green">✓ PA transferido</span>':'<span class="badge badge-orange">PA pendente</span>'}
+          <div class="hist-actions">
+            <button class="hist-edit-btn" onclick="fecharModal('modal-detalhe');abrirEditarAlvara(${realIdx})">✎ Editar</button>
+            <button class="hist-del-btn" onclick="fecharModal('modal-detalhe');confirmarExcluirAlvara(${realIdx})">🗑 Excluir</button>
+          </div>
+        </div>
+        <div style="color:var(--muted);font-size:10px;margin-top:2px">Líquido: <b>${fmt(liq)}</b> (${imp}% imp.) • Repasse PA: <b>${fmt(pa)}</b> (${rep}%)</div>
+        ${a.observacao?`<div style="color:var(--muted);font-size:11px;margin-top:2px">${a.observacao}</div>`:''}
+      </div>`;
+    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhum recebimento registrado.</div>'}`;
   abrirModal('modal-detalhe');
 }
 
