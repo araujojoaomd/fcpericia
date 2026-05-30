@@ -103,7 +103,7 @@ tbody tr:nth-child(even){background:#fafafa}
 .proc-card.prazo-urgente{border-color:#f59e0b}
 .proc-card.prazo-vencido{border-color:#ef4444}
 .proc-card.diligencia{border-color:#f97316}
-.proc-card.encerrado{border-color:#10b981;opacity:.85}
+.proc-card.encerrado{border-color:var(--gray3);background:var(--gray2);opacity:.72}
 .proc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .proc-left{flex:1}
 .proc-badges{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap}
@@ -143,6 +143,9 @@ tbody tr:nth-child(even){background:#fafafa}
 .ms-opt:hover{background:var(--gray)}
 .ms-opt input{cursor:pointer;flex-shrink:0}
 .ms-empty{padding:8px 9px;font-size:11px;color:var(--faint)}
+.ms-actions{display:flex;gap:12px;padding:4px 9px 6px;border-bottom:1px solid var(--gray2);margin-bottom:4px;position:sticky;top:-4px;background:#fff}
+.ms-actions a{font-size:10px;color:var(--blue);cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.ms-actions a:hover{text-decoration:underline}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
@@ -822,9 +825,21 @@ function msPopular(id,items){
   const valid=new Set(norm.map(i=>i.value));
   [...sel].forEach(v=>{if(!valid.has(v))sel.delete(v);});
   el.querySelector('.ms-panel').innerHTML=norm.length
-    ?norm.map(i=>`<label class="ms-opt"><input type="checkbox" value="${_msEsc(i.value)}" ${sel.has(i.value)?'checked':''} onchange="msOnChange('${id}',this)"> <span>${_msEsc(i.label)}</span></label>`).join('')
+    ?`<div class="ms-actions"><a onclick="msMarcarTodos('${id}')">Marcar todos</a><a onclick="msLimparSel('${id}')">Desmarcar todos</a></div>`
+     +norm.map(i=>`<label class="ms-opt"><input type="checkbox" value="${_msEsc(i.value)}" ${sel.has(i.value)?'checked':''} onchange="msOnChange('${id}',this)"> <span>${_msEsc(i.label)}</span></label>`).join('')
     :'<div class="ms-empty">Sem opções</div>';
   msUpdateLabel(id);
+}
+function msMarcarTodos(id){
+  const el=document.getElementById(id);if(!el)return;
+  const sel=msSel[id]||(msSel[id]=new Set());
+  el.querySelectorAll('.ms-panel input[type=checkbox]').forEach(cb=>{cb.checked=true;sel.add(cb.value);});
+  msUpdateLabel(id);(MS_RENDER[id]||(()=>{}))();
+}
+function msLimparSel(id){
+  const el=document.getElementById(id);
+  if(el)el.querySelectorAll('.ms-panel input[type=checkbox]').forEach(cb=>cb.checked=false);
+  msClear(id);(MS_RENDER[id]||(()=>{}))();
 }
 function msOnChange(id,cb){
   const sel=msSel[id]||(msSel[id]=new Set());
@@ -923,10 +938,10 @@ function renderProcessos(){
     const st=statusPrazo(p.data_limite_etapa_atual);
     const idxAtual=ETAPAS.indexOf(p.etapa_atual);
     let cardClass='proc-card';
-    if(dilAtiva)cardClass+=' diligencia';
+    if(encerrado)cardClass+=' encerrado';
+    else if(dilAtiva)cardClass+=' diligencia';
     else if(st==='vencido')cardClass+=' prazo-vencido';
     else if(st==='urgente')cardClass+=' prazo-urgente';
-    else if(encerrado)cardClass+=' encerrado';
     const etapasExib=ETAPAS.filter(e=>e!=='Encerrado');
     const timeline=etapasExib.map((e,i)=>`<div class="etapa-step ${i<idxAtual?'done':i===idxAtual?'current':''}" ><span class="tip">${i+1}. ${e}</span></div>`).join('');
     return`<div class="${cardClass}">
