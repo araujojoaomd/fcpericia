@@ -127,6 +127,7 @@ tbody tr:nth-child(even){background:#fafafa}
 .filter-input:focus{border-color:var(--blue-l)}
 .filter-select{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none;cursor:pointer}
 .btn-clear-filters{background:none;border:1.5px solid var(--gray3);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
+.sort-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
@@ -243,6 +244,21 @@ tbody tr:nth-child(even){background:#fafafa}
       <div id="tab-dashboard" class="tab-content">
         <div class="page-title">Dashboard</div>
         <p class="page-sub" id="dash-sub">Visão geral</p>
+        <div class="filters" style="margin-bottom:10px">
+          <span class="sort-label">Ordenar:</span>
+          <select class="filter-select" id="sort-dash-campo" onchange="renderDashboard()">
+            <option value="">Padrão (Autor A→Z)</option>
+            <option value="data_nomeacao">Data de Nomeação</option>
+            <option value="num">Número do Processo</option>
+            <option value="autor">Autor</option>
+            <option value="etapa">Etapa</option>
+            <option value="prazo">Prazo</option>
+          </select>
+          <select class="filter-select" id="sort-dash-dir" onchange="renderDashboard()">
+            <option value="asc">Crescente ↑</option>
+            <option value="desc">Decrescente ↓</option>
+          </select>
+        </div>
         <div class="stats" id="stats-dash"></div>
         <div class="stats" id="stats-fin"></div>
         <div class="card">
@@ -268,6 +284,19 @@ tbody tr:nth-child(even){background:#fafafa}
             <option value="">Todos os prazos</option><option value="com_prazo">Com prazo</option>
             <option value="urgente">⚠ Urgente</option><option value="vencido">🔴 Vencido</option>
           </select>
+          <span class="sort-label">Ordenar:</span>
+          <select class="filter-select" id="sort-proc-campo" onchange="renderProcessos()">
+            <option value="">Padrão (Autor A→Z)</option>
+            <option value="data_nomeacao">Data de Nomeação</option>
+            <option value="num">Número do Processo</option>
+            <option value="autor">Autor</option>
+            <option value="etapa">Etapa</option>
+            <option value="prazo">Prazo</option>
+          </select>
+          <select class="filter-select" id="sort-proc-dir" onchange="renderProcessos()">
+            <option value="asc">Crescente ↑</option>
+            <option value="desc">Decrescente ↓</option>
+          </select>
           <button class="btn-clear-filters" onclick="limparFiltros()">✕ Limpar</button>
         </div>
         <div id="lista-processos"></div>
@@ -283,6 +312,19 @@ tbody tr:nth-child(even){background:#fafafa}
           <select class="filter-select" id="fm-autor" onchange="renderMovimentacoes()"><option value="">Todos os autores</option></select>
           <select class="filter-select" id="fm-vara" onchange="renderMovimentacoes()"><option value="">Todas as varas</option></select>
           <select class="filter-select" id="fm-tipo" onchange="renderMovimentacoes()"><option value="">Todos os tipos</option></select>
+          <span class="sort-label">Ordenar:</span>
+          <select class="filter-select" id="sort-mov-campo" onchange="renderMovimentacoes()">
+            <option value="">Padrão (mais recentes)</option>
+            <option value="data_nomeacao">Data de Nomeação</option>
+            <option value="num">Número do Processo</option>
+            <option value="autor">Autor</option>
+            <option value="etapa">Etapa</option>
+            <option value="prazo">Prazo</option>
+          </select>
+          <select class="filter-select" id="sort-mov-dir" onchange="renderMovimentacoes()">
+            <option value="asc">Crescente ↑</option>
+            <option value="desc">Decrescente ↓</option>
+          </select>
           <button class="btn-clear-filters" onclick="limparFiltrosMov()">✕ Limpar</button>
         </div>
         <div class="tbl-wrap">
@@ -300,6 +342,19 @@ tbody tr:nth-child(even){background:#fafafa}
           <select class="filter-select" id="fa-processo" onchange="renderAlvaras()"><option value="">Todos os processos</option></select>
           <select class="filter-select" id="fa-autor" onchange="renderAlvaras()"><option value="">Todos os autores</option></select>
           <select class="filter-select" id="fa-vara" onchange="renderAlvaras()"><option value="">Todas as varas</option></select>
+          <span class="sort-label">Ordenar:</span>
+          <select class="filter-select" id="sort-alv-campo" onchange="renderAlvaras()">
+            <option value="">Padrão</option>
+            <option value="data_nomeacao">Data de Nomeação</option>
+            <option value="num">Número do Processo</option>
+            <option value="autor">Autor</option>
+            <option value="etapa">Etapa</option>
+            <option value="prazo">Prazo</option>
+          </select>
+          <select class="filter-select" id="sort-alv-dir" onchange="renderAlvaras()">
+            <option value="asc">Crescente ↑</option>
+            <option value="desc">Decrescente ↓</option>
+          </select>
           <button class="btn-clear-filters" onclick="limparFiltrosAlv()">✕ Limpar</button>
         </div>
         <div class="stats" id="stats-alv"></div>
@@ -703,7 +758,9 @@ function renderDashboard(){
     <div class="stat-card red"><div class="stat-label">Saldo a Receber</div><div class="stat-value" style="font-size:15px">${fmt(saldo)}</div></div>
     <div class="stat-card orange"><div class="stat-label">A Transferir ao PA</div><div class="stat-value" style="font-size:15px">${fmt(totalPA)}</div></div>`;
   const tb=document.getElementById('tbl-dash');
-  const atv=procs.filter(p=>p.etapa_atual!=='Encerrado').sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
+  let atv=procs.filter(p=>p.etapa_atual!=='Encerrado');
+  const ordD=aplicarOrdenacao(atv,p=>p,'sort-dash-campo','sort-dash-dir');
+  atv=ordD||atv.sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
   if(!atv.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum processo ativo.</td></tr>';return;}
   tb.innerHTML=atv.map(p=>{
     const aP=alvaras.filter(a=>a.num_processo===p.num);
@@ -716,6 +773,32 @@ function renderDashboard(){
       <td style="font-size:11px"><div style="color:var(--blue)">Dir: ${fmt(dir)}</div><div style="color:var(--muted)">Rec: ${fmt(rec)}</div><div style="color:${sal>0?'var(--red-l)':'var(--green)'}">Sal: ${fmt(sal)}</div></td>
     </tr>`;
   }).join('');
+}
+
+// ─── ORDENAÇÃO ────────────────────────────────────────────────────────────────
+function _sortKey(p,campo){
+  if(!p)return '';
+  switch(campo){
+    case 'data_nomeacao':return p.data_nomeacao||'';
+    case 'num':return p.num||'';
+    case 'autor':return p.autor||'';
+    case 'etapa':return ETAPAS.indexOf(p.etapa_atual);
+    case 'prazo':return p.data_limite_etapa_atual||'';
+    default:return '';
+  }
+}
+function aplicarOrdenacao(arr,getP,campoId,dirId){
+  const campo=(document.getElementById(campoId)||{value:''}).value;
+  if(!campo)return null;
+  const mult=((document.getElementById(dirId)||{value:'asc'}).value==='desc')?-1:1;
+  return [...arr].sort((x,y)=>{
+    const va=_sortKey(getP(x),campo),vb=_sortKey(getP(y),campo);
+    let r;
+    if(campo==='etapa')r=va-vb;
+    else if(campo==='autor')r=String(va).localeCompare(String(vb),'pt-BR');
+    else r=String(va).localeCompare(String(vb));
+    return r*mult;
+  });
 }
 
 // ─── PROCESSOS ────────────────────────────────────────────────────────────────
@@ -734,8 +817,8 @@ function renderProcessos(){
     if(fPrazo){const st=statusPrazo(p.data_limite_etapa_atual);if(fPrazo==='com_prazo'&&!p.data_limite_etapa_atual)return false;if(fPrazo==='urgente'&&st!=='urgente')return false;if(fPrazo==='vencido'&&st!=='vencido')return false;}
     return true;
   });
-  // Ordenar por autor A→Z
-  fil.sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
+  const ord=aplicarOrdenacao(fil,p=>p,'sort-proc-campo','sort-proc-dir');
+  fil=ord||fil.sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
   document.getElementById('proc-count').textContent=base.length+' processo(s)';
   const lista=document.getElementById('lista-processos');
   if(!fil.length){lista.innerHTML='<div style="text-align:center;padding:36px;color:var(--faint)">Nenhum processo encontrado.</div>';return;}
@@ -809,13 +892,15 @@ function renderMovimentacoes(){
   const fAutor=(document.getElementById('fm-autor')||{value:''}).value;
   const fVara=(document.getElementById('fm-vara')||{value:''}).value;
   const fTipo=(document.getElementById('fm-tipo')||{value:''}).value;
-  const fil=[...movs].reverse().filter(m=>{
+  let fil=[...movs].reverse().filter(m=>{
     if(!numBase.has(m.num_processo))return false;
     if(fProc&&m.num_processo!==fProc)return false;
     if(fTipo&&m.tipo!==fTipo)return false;
     if(fAutor||fVara){const p=processos.find(x=>x.num===m.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
     return true;
   });
+  const ordM=aplicarOrdenacao(fil,m=>processos.find(x=>x.num===m.num_processo),'sort-mov-campo','sort-mov-dir');
+  if(ordM)fil=ordM;
   document.getElementById('mov-count').textContent=movs.length+' registro(s)';
   const tb=document.getElementById('tbl-movs');
   if(!fil.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Nenhuma movimentação.</td></tr>';return;}
@@ -852,12 +937,14 @@ function renderAlvaras(){
   const fProc=(document.getElementById('fa-processo')||{value:''}).value;
   const fAutor=(document.getElementById('fa-autor')||{value:''}).value;
   const fVara=(document.getElementById('fa-vara')||{value:''}).value;
-  const fil=alvaras.filter(a=>{
+  let fil=alvaras.filter(a=>{
     if(!numBase.has(a.num_processo))return false;
     if(fProc&&a.num_processo!==fProc)return false;
     if(fAutor||fVara){const p=processos.find(x=>x.num===a.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
     return true;
   });
+  const ordA=aplicarOrdenacao(fil,a=>processos.find(x=>x.num===a.num_processo),'sort-alv-campo','sort-alv-dir');
+  if(ordA)fil=ordA;
   const totalRec=fil.reduce((s,a)=>s+nv(a.vlr_recebido),0);
   const totalLiq=fil.reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;return s+nv(a.vlr_recebido)*(1-imp/100);},0);
   const totalPA=fil.reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
