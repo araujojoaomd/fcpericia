@@ -405,6 +405,7 @@ tbody tr:nth-child(even){background:#fafafa}
           <select class="filter-select" id="rel-tipo" onchange="onChangeRelTipo()">
             <option value="varas">Cobrança às Varas (valores a receber)</option>
             <option value="peritos">Prestação de Contas — Perito Assistente</option>
+            <option value="geral_pa">Relatório Geral — Perito Assistente</option>
           </select>
           <select class="filter-select" id="rel-filtro" onchange="renderRelatorios()"></select>
           <button class="primary-btn btn-blue" onclick="imprimirRelatorio()">🖨 Imprimir / PDF</button>
@@ -1161,7 +1162,7 @@ function renderRelatorios(){
   const cont=document.getElementById('rel-conteudo');if(!cont)return;
   const tipo=(document.getElementById('rel-tipo')||{value:'varas'}).value;
   const filtro=(document.getElementById('rel-filtro')||{value:''}).value;
-  cont.innerHTML=tipo==='varas'?relVaras(filtro):relPeritos(filtro);
+  cont.innerHTML=tipo==='varas'?relVaras(filtro):tipo==='geral_pa'?relGeralPA(filtro):relPeritos(filtro);
 }
 function relCabecalho(titulo){
   const hoje=new Date().toLocaleDateString('pt-BR');
@@ -1232,6 +1233,34 @@ function relPeritos(filtroPerito){
     </tfoot></table></div>`;
   });
   html+=`<div class="rel-total">Total em aberto a transferir aos peritos: ${fmt(gAberto)}</div>`;
+  return html;
+}
+function relGeralPA(filtroPerito){
+  const base=processosFiltradosPorPerfil().filter(p=>p.perito_assistente);
+  const grupos={};base.forEach(p=>{(grupos[p.perito_assistente]=grupos[p.perito_assistente]||[]).push(p);});
+  let nomes=Object.keys(grupos).sort();
+  if(filtroPerito)nomes=nomes.filter(n=>n===filtroPerito);
+  let html=relCabecalho('Relatório Geral — Perito Assistente');
+  if(!nomes.length)return html+'<p style="color:var(--faint);padding:20px">Nenhum perito com processos.</p>';
+  html+=`<table class="rel-tbl"><thead><tr><th>Perito</th><th class="num">Laudos</th><th class="num">Honorários</th><th class="num">Est. repasse (50%)</th><th class="num">Direito</th><th class="num">Recebido</th><th class="num">Repassado</th><th class="num">Saldo a receber</th><th class="num">A repassar</th></tr></thead><tbody>`;
+  const T={laudos:0,honor:0,est:0,dir:0,rec:0,rep:0,saldoR:0,aRep:0};
+  nomes.forEach(nome=>{
+    const ps=grupos[nome];let laudos=ps.length,honor=0,est=0,dir=0,rec=0,rep=0,aRep=0;
+    ps.forEach(p=>{
+      const h=nv(p.vlr_honorario);honor+=h;est+=h*0.94*0.5;
+      dir+=calcDireito(p.vlr_honorario,p.etapa_atual);
+      alvaras.filter(a=>a.num_processo===p.num).forEach(a=>{
+        const imp=nv(a.perc_imposto)||6,repp=nv(a.perc_repasse_pa)||50;
+        const bruto=nv(a.vlr_recebido),repasse=bruto*(1-imp/100)*(repp/100);
+        rec+=bruto;if(isBool(a.transferido_pa))rep+=repasse;else aRep+=repasse;
+      });
+    });
+    const saldoR=Math.max(0,dir-rec);
+    T.laudos+=laudos;T.honor+=honor;T.est+=est;T.dir+=dir;T.rec+=rec;T.rep+=rep;T.saldoR+=saldoR;T.aRep+=aRep;
+    html+=`<tr><td style="font-weight:600">${nome}</td><td class="num">${laudos}</td><td class="num">${fmt(honor)}</td><td class="num">${fmt(est)}</td><td class="num">${fmt(dir)}</td><td class="num">${fmt(rec)}</td><td class="num">${fmt(rep)}</td><td class="num" style="font-weight:700;color:${saldoR>0?'var(--red)':'var(--green)'}">${fmt(saldoR)}</td><td class="num" style="color:${aRep>0?'var(--orange)':'inherit'}">${fmt(aRep)}</td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr><td>Total</td><td class="num">${T.laudos}</td><td class="num">${fmt(T.honor)}</td><td class="num">${fmt(T.est)}</td><td class="num">${fmt(T.dir)}</td><td class="num">${fmt(T.rec)}</td><td class="num">${fmt(T.rep)}</td><td class="num">${fmt(T.saldoR)}</td><td class="num">${fmt(T.aRep)}</td></tr></tfoot></table>
+  <div style="font-size:10px;color:var(--muted);margin-top:8px">Est. repasse (50%) = honorário × (1 − 6% imposto) × 50%. Direito conforme a etapa. A repassar = repasse do que já foi recebido e ainda não transferido.</div>`;
   return html;
 }
 function imprimirRelatorio(){
