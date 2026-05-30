@@ -808,7 +808,7 @@ function renderDashboard(){
   tb.innerHTML=atv.map(p=>{
     const aP=alvaras.filter(a=>a.num_processo===p.num);
     const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);const pa=paDe(p);
-    return`<tr><td class="mono">${p.num}</td><td>${p.autor}</td>
+    return`<tr><td class="mono"><span onclick="verDetalhe('${p.num}')" style="color:var(--blue);text-decoration:underline;cursor:pointer" title="Ver detalhes">${p.num}</span></td><td>${p.autor}</td>
       <td><span class="badge badge-purple">${p.assunto}</span>${p.teses?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${p.teses}</div>`:''}</td>
       <td>${etapaBadge(p.etapa_atual)}${isBool(p.em_diligencia)?'<div class="diligencia-badge" style="margin-top:3px">🔄 Diligência</div>':''}</td>
       <td style="font-size:11px">${p.perito_assistente||'—'}</td>
