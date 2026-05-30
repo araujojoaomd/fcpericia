@@ -354,6 +354,7 @@ tbody tr:nth-child(even){background:#fafafa}
           <div class="ms-dropdown" id="ms-fa-processo" data-label="Todos os processos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-processo')"><span class="ms-text">Todos os processos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-fa-autor" data-label="Todos os autores"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-autor')"><span class="ms-text">Todos os autores</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-fa-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-fa-transf" data-label="Transf. PA: todos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-fa-transf')"><span class="ms-text">Transf. PA: todos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-alv-campo" onchange="renderAlvaras()">
             <option value="">Padrão</option>
@@ -802,7 +803,7 @@ const msSel={};
 const MS_RENDER={
   'ms-f-autor':()=>renderProcessos(),'ms-f-vara':()=>renderProcessos(),'ms-f-etapa':()=>renderProcessos(),'ms-f-prazo':()=>renderProcessos(),
   'ms-fm-processo':()=>renderMovimentacoes(),'ms-fm-autor':()=>renderMovimentacoes(),'ms-fm-vara':()=>renderMovimentacoes(),'ms-fm-tipo':()=>renderMovimentacoes(),
-  'ms-fa-processo':()=>renderAlvaras(),'ms-fa-autor':()=>renderAlvaras(),'ms-fa-vara':()=>renderAlvaras()
+  'ms-fa-processo':()=>renderAlvaras(),'ms-fa-autor':()=>renderAlvaras(),'ms-fa-vara':()=>renderAlvaras(),'ms-fa-transf':()=>renderAlvaras()
 };
 function msToggle(ev,id){
   ev.stopPropagation();
@@ -1021,9 +1022,11 @@ function renderAlvaras(){
   const fProc=msGet('ms-fa-processo');
   const fAutor=msGet('ms-fa-autor');
   const fVara=msGet('ms-fa-vara');
+  const fTransf=msGet('ms-fa-transf');
   let fil=alvaras.filter(a=>{
     if(!numBase.has(a.num_processo))return false;
     if(fProc.length&&!fProc.includes(a.num_processo))return false;
+    if(fTransf.length){const st=isBool(a.transferido_pa)?'sim':'pendente';if(!fTransf.includes(st))return false;}
     if(fAutor.length||fVara.length){const p=processos.find(x=>x.num===a.num_processo);if(!p)return false;if(fAutor.length&&!fAutor.includes(p.autor))return false;if(fVara.length&&!fVara.includes(p.vara))return false;}
     return true;
   });
@@ -1078,6 +1081,7 @@ function popularFiltros(){
   msPopular('ms-f-prazo',[{value:'com_prazo',label:'Com prazo'},{value:'urgente',label:'⚠ Urgente'},{value:'vencido',label:'🔴 Vencido'}]);
   msPopular('ms-fm-processo',nums);msPopular('ms-fm-autor',autores);msPopular('ms-fm-vara',varas);msPopular('ms-fm-tipo',['Mudança de Etapa','Observação Simples','Diligência']);
   msPopular('ms-fa-processo',nums);msPopular('ms-fa-autor',autores);msPopular('ms-fa-vara',varas);
+  msPopular('ms-fa-transf',[{value:'sim',label:'✓ Transferido'},{value:'pendente',label:'Pendente'}]);
   const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
   const selA=document.getElementById('f-assunto');if(selA)selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
   const selP=document.getElementById('f-perito-ass');if(selP)selP.innerHTML='<option value="">Selecione...</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');
@@ -1086,7 +1090,7 @@ function popularFiltros(){
 }
 function limparFiltros(){const b=document.getElementById('f-busca');if(b)b.value='';['ms-f-autor','ms-f-vara','ms-f-etapa','ms-f-prazo'].forEach(msClear);renderProcessos();}
 function limparFiltrosMov(){['ms-fm-processo','ms-fm-autor','ms-fm-vara','ms-fm-tipo'].forEach(msClear);renderMovimentacoes();}
-function limparFiltrosAlv(){['ms-fa-processo','ms-fa-autor','ms-fa-vara'].forEach(msClear);renderAlvaras();}
+function limparFiltrosAlv(){['ms-fa-processo','ms-fa-autor','ms-fa-vara','ms-fa-transf'].forEach(msClear);renderAlvaras();}
 
 // ─── TESES ────────────────────────────────────────────────────────────────────
 function carregarTesesParaMov(assunto,selecionadas=[]){
