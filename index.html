@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FC Perícia — Sistema de Gestão</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0f172a;--navy2:#1e293b;--navy3:#334155;
+  --blue:#1d4ed8;--blue-l:#3b82f6;--blue-ll:#dbeafe;
+  --green:#065f46;--green-l:#10b981;--green-ll:#d1fae5;
+  --yellow:#92400e;--yellow-l:#f59e0b;--yellow-ll:#fef3c7;
+  --red:#991b1b;--red-l:#ef4444;--red-ll:#fee2e2;
+  --purple-l:#ede9fe;--purple:#4c1d95;
+  --orange:#7c2d12;--orange-l:#f97316;--orange-ll:#ffedd5;
+  --gray:#f8fafc;--gray2:#f1f5f9;--gray3:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--faint:#94a3b8;--white:#fff;
+  --sidebar-w:220px;--radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f0f4f8;color:var(--text);min-height:100vh}
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);gap:24px}
+.login-logo{font-family:'Playfair Display',serif;font-size:36px;color:#fff}
+.login-sub{color:var(--faint);font-size:14px;margin-top:-16px}
+.login-card{background:var(--navy2);border-radius:20px;padding:36px 40px;display:flex;flex-direction:column;align-items:center;gap:20px;border:1px solid var(--navy3);min-width:320px}
+.login-desc{color:#94a3b8;font-size:13px;text-align:center;line-height:1.6}
+.btn-google{display:flex;align-items:center;gap:12px;background:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;color:#1e293b;font-family:inherit;width:100%;justify-content:center}
+.btn-google:hover{opacity:.9}
+.btn-google svg{width:20px;height:20px;flex-shrink:0}
+#app{display:none;min-height:100vh}
+#sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.logo{padding:20px 20px 14px;border-bottom:1px solid var(--navy2)}
+.logo-name{font-size:13px;font-weight:800;color:var(--blue-l);text-transform:uppercase;letter-spacing:.1em}
+.logo-sub{font-size:10px;color:var(--navy3);margin-top:3px}
+.perfil-wrap{padding:12px 16px;border-bottom:1px solid var(--navy2)}
+.perfil-label{font-size:9px;font-weight:700;color:var(--navy3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.perfil-select{width:100%;background:var(--navy2);color:#94a3b8;border:1px solid var(--navy3);border-radius:7px;padding:6px 8px;font-size:11px;font-family:inherit;cursor:pointer;outline:none}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:12px 20px;border:none;background:none;color:var(--faint);cursor:pointer;font-size:12px;font-family:inherit;text-align:left;width:100%;border-left:3px solid transparent;transition:all .15s}
+.nav-btn:hover{color:#cbd5e1;background:rgba(255,255,255,.04)}
+.nav-btn.active{background:var(--blue);color:#fff;border-left-color:var(--blue-l);font-weight:700}
+.sidebar-footer{margin-top:auto;padding:14px 16px;border-top:1px solid var(--navy2);display:flex;flex-direction:column;gap:7px}
+.btn-reload{width:100%;background:var(--navy2);color:var(--blue-l);border:1px solid var(--navy3);border-radius:8px;padding:7px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-reload:disabled{opacity:.5;cursor:not-allowed}
+.btn-logout{width:100%;background:none;color:var(--faint);border:1px solid var(--navy3);border-radius:8px;padding:6px 0;font-size:11px;cursor:pointer;font-family:inherit}
+.user-info{font-size:10px;color:var(--navy3);text-align:center;word-break:break-all}
+#main{margin-left:var(--sidebar-w);flex:1;padding:26px;min-height:100vh}
+.spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid var(--gray3);border-top-color:var(--blue-l);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner-msg{color:var(--muted);font-size:13px}
+#toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;color:#fff;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:400px;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;cursor:pointer}
+#toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.page-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:800;margin-bottom:3px}
+.page-sub{color:var(--muted);font-size:12px;margin-bottom:20px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.stat-card{border-radius:var(--radius);padding:16px 20px;color:#fff;flex:1;min-width:130px}
+.stat-card.blue{background:linear-gradient(135deg,#1d4ed8,#3b82f6)}
+.stat-card.green{background:linear-gradient(135deg,#065f46,#10b981)}
+.stat-card.yellow{background:linear-gradient(135deg,#92400e,#f59e0b)}
+.stat-card.red{background:linear-gradient(135deg,#991b1b,#ef4444)}
+.stat-card.purple{background:linear-gradient(135deg,#4c1d95,#8b5cf6)}
+.stat-card.orange{background:linear-gradient(135deg,#7c2d12,#f97316)}
+.stat-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.8;margin-bottom:5px}
+.stat-value{font-size:22px;font-weight:800;line-height:1}
+.stat-sub{font-size:10px;opacity:.75;margin-top:4px}
+.card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:14px}
+.tbl-wrap{background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--gray)}
+th{text-align:left;padding:9px 13px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--gray3)}
+td{padding:8px 13px;border-bottom:1px solid var(--gray2);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:nth-child(even){background:#fafafa}
+.mono{font-family:monospace;color:var(--blue-l);font-size:11px;font-weight:700}
+.empty-row td{text-align:center;padding:28px;color:var(--faint)}
+.badge{display:inline-block;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid}
+.badge-green{background:var(--green-ll);color:var(--green);border-color:#6ee7b7}
+.badge-yellow{background:var(--yellow-ll);color:var(--yellow);border-color:#fcd34d}
+.badge-red{background:var(--red-ll);color:var(--red);border-color:#fca5a5}
+.badge-blue{background:var(--blue-ll);color:var(--blue);border-color:#93c5fd}
+.badge-gray{background:var(--gray2);color:#374151;border-color:var(--gray3)}
+.badge-purple{background:var(--purple-l);color:var(--purple);border-color:#c4b5fd}
+.badge-orange{background:var(--orange-ll);color:var(--orange);border-color:#fdba74}
+.fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.fin-card{background:var(--gray);border-radius:10px;padding:10px 12px;border:1px solid var(--gray3)}
+.fin-card-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.fin-card-value{font-size:13px;font-weight:800}
+.fin-card-value.green{color:var(--green)}
+.fin-card-value.blue{color:var(--blue)}
+.fin-card-value.red{color:var(--red-l)}
+.fin-card-value.orange{color:var(--orange-l)}
+.fin-card-value.purple{color:var(--purple)}
+/* BARRA DE PROGRESSO */
+.fin-progress-wrap{margin:4px 0 8px}
+.fin-progress-bar{height:7px;background:var(--gray3);border-radius:4px;overflow:hidden}
+.fin-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green-l),var(--green));transition:width .4s ease}
+.fin-progress-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px}
+.proc-card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);border:2px solid transparent;margin-bottom:10px}
+.proc-card.prazo-urgente{border-color:#f59e0b}
+.proc-card.prazo-vencido{border-color:#ef4444}
+.proc-card.diligencia{border-color:#f97316}
+.proc-card.encerrado{border-color:#10b981;opacity:.85}
+.proc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.proc-left{flex:1}
+.proc-badges{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap}
+.proc-autor{font-size:13px;font-weight:700;margin-bottom:2px}
+.proc-reu{font-size:11px;color:var(--muted);margin-bottom:4px}
+.proc-meta{font-size:10px;color:var(--faint);display:flex;gap:14px;flex-wrap:wrap}
+.proc-right{text-align:right;flex-shrink:0;min-width:180px}
+.proc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray2);flex-wrap:wrap}
+.act-btn{border:none;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.act-btn:hover{opacity:.8}
+.act-gray{background:var(--gray2);color:var(--text)}
+.act-blue{background:var(--blue-ll);color:var(--blue)}
+.act-green{background:var(--green-ll);color:var(--green)}
+.act-yellow{background:var(--yellow-ll);color:var(--yellow)}
+.act-red{background:var(--red-ll);color:var(--red)}
+.act-orange{background:var(--orange-ll);color:var(--orange)}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+.primary-btn{border:none;border-radius:10px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;color:#fff;font-family:inherit}
+.primary-btn:hover{opacity:.88}
+.primary-btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-blue{background:var(--blue)}.btn-green{background:var(--green)}.btn-yellow{background:var(--yellow)}.btn-purple{background:#7c3aed}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filter-input{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none;min-width:180px}
+.filter-input:focus{border-color:var(--blue-l)}
+.filter-select{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none;cursor:pointer}
+.btn-clear-filters{background:none;border:1.5px solid var(--gray3);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
+.modal-box.wide{max-width:820px}
+@keyframes modalIn{from{transform:scale(.96) translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--text)}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--faint)}
+.form-grid{display:flex;flex-wrap:wrap;gap:9px}
+.form-field{width:100%}
+.form-field.half{width:calc(50% - 5px)}
+.form-field.third{width:calc(33.33% - 6px)}
+.field-label{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.field-input,.field-select{width:100%;padding:7px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none}
+.field-input:focus,.field-select:focus{border-color:var(--blue-l)}
+.field-input:disabled,.field-select:disabled{opacity:.6;cursor:not-allowed;background:var(--gray2)}
+.field-readonly{width:100%;padding:7px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--muted);background:var(--gray2);font-family:inherit}
+.calc-row{background:var(--gray);border-radius:8px;padding:10px 12px;display:flex;gap:16px;flex-wrap:wrap;border:1px solid var(--gray3)}
+.calc-item{display:flex;flex-direction:column;gap:2px}
+.calc-item-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.calc-item-value{font-size:14px;font-weight:800;color:var(--green)}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.modal-cancel{background:var(--gray2);border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;font-family:inherit}
+.modal-save{border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;color:#fff;font-family:inherit}
+.modal-save:disabled{opacity:.5;cursor:not-allowed}
+.teses-grid{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0}
+.tese-chip{display:inline-flex;align-items:center;gap:6px;background:var(--gray);border:1.5px solid var(--gray3);border-radius:20px;padding:5px 14px;font-size:11px;cursor:pointer;transition:all .15s;user-select:none}
+.tese-chip:hover{border-color:var(--purple);color:var(--purple)}
+.tese-chip.selected{background:var(--purple-l);border-color:#c4b5fd;color:var(--purple);font-weight:600}
+/* LINHA DO TEMPO */
+.etapa-indicator{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;margin:4px 0 6px;position:relative}
+.etapa-step{width:22px;height:5px;border-radius:3px;background:var(--gray3);cursor:pointer;position:relative;flex-shrink:0}
+.etapa-step.done{background:var(--green-l)}
+.etapa-step.current{background:var(--blue-l)}
+/* TOOLTIP melhorado */
+.etapa-step .tip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--navy);color:#e2e8f0;font-size:10px;font-weight:500;
+  padding:5px 9px;border-radius:6px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:50;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);
+  border:1px solid var(--navy3);
+}
+.etapa-step .tip::after{
+  content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--navy);
+}
+.etapa-step:hover .tip{opacity:1}
+/* DETALHE */
+.detail-row{display:flex;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--gray2)}
+.detail-key{font-weight:700;color:var(--muted);min-width:140px;flex-shrink:0}
+.hist-item{background:var(--gray);border-radius:8px;padding:9px 12px;margin-bottom:6px;font-size:11px}
+.hist-head{display:flex;gap:7px;align-items:center;margin-bottom:3px;flex-wrap:wrap}
+.hist-actions{margin-left:auto;display:flex;gap:5px;flex-shrink:0}
+.hist-edit-btn{background:var(--blue-ll);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit}
+.hist-del-btn{background:var(--red-ll);color:var(--red);border:none;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit}
+.section-label{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin:16px 0 8px}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:none;align-items:center;justify-content:center}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:#fff;border-radius:16px;padding:26px;max-width:420px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.confirm-title{font-size:15px;font-weight:700;margin-bottom:8px}
+.confirm-msg{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6;white-space:pre-line}
+.confirm-btns{display:flex;justify-content:flex-end;gap:8px}
+.btn-danger{background:var(--red-l);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
+.prazo-badge-urgente{display:inline-flex;align-items:center;gap:4px;background:var(--yellow-ll);color:var(--yellow);border:1px solid #fcd34d;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700}
+.prazo-badge-vencido{display:inline-flex;align-items:center;gap:4px;background:var(--red-ll);color:var(--red);border:1px solid #fca5a5;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700}
+.prazo-badge-normal{display:inline-flex;align-items:center;gap:4px;background:var(--gray2);color:var(--muted);border:1px solid var(--gray3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600}
+.diligencia-badge{display:inline-flex;align-items:center;gap:4px;background:var(--orange-ll);color:var(--orange);border:1px solid #fdba74;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700}
+/* SESSÃO EXPIRADA BANNER */
+#session-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:#b91c1c;color:#fff;padding:12px 20px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#session-banner:hover{background:#991b1b}
+</style>
+</head>
+<body>
+
+<!-- SESSÃO EXPIRADA -->
+<div id="session-banner" onclick="fazerLogin()">⚠ Sua sessão expirou. Clique aqui para fazer login novamente.</div>
+
+<div id="login-screen">
+  <div class="login-logo">FC Perícia</div>
+  <div class="login-sub">Sistema de Gestão de Perícias Judiciais</div>
+  <div class="login-card">
+    <div class="login-desc">Entre com sua conta Google para acessar<br>os dados da planilha <strong>bd_fcpericia_sistema</strong></div>
+    <button class="btn-google" onclick="fazerLogin()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Entrar com Google
+    </button>
+  </div>
+</div>
+
+<div id="app">
+  <nav id="sidebar">
+    <div class="logo"><div class="logo-name">FC Perícia</div><div class="logo-sub">Gestão Judicial</div></div>
+    <div class="perfil-wrap">
+      <div class="perfil-label">Perfil</div>
+      <select class="perfil-select" id="perfilSelect" onchange="aplicarFiltroGlobal()"><option value="">Coordenador Geral</option></select>
+    </div>
+    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
+    <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
+    <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
+    <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
+    <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Configurações</button>
+    <div class="sidebar-footer">
+      <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
+      <button class="btn-logout" onclick="fazerLogout()">Sair da conta</button>
+      <div class="user-info" id="userInfo"></div>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div id="spinner" class="spinner-wrap"><div class="spinner"></div><div class="spinner-msg" id="spinMsg">Carregando...</div></div>
+    <div id="content" style="display:none">
+
+      <div id="tab-dashboard" class="tab-content">
+        <div class="page-title">Dashboard</div>
+        <p class="page-sub" id="dash-sub">Visão geral</p>
+        <div class="stats" id="stats-dash"></div>
+        <div class="stats" id="stats-fin"></div>
+        <div class="card">
+          <div style="font-size:12px;font-weight:700;margin-bottom:12px">Processos Ativos</div>
+          <div class="tbl-wrap" style="box-shadow:none">
+            <table><thead><tr><th>Processo</th><th>Autor</th><th>Assunto/Teses</th><th>Etapa</th><th>Perito</th><th>Prazo</th><th>Situação Fin.</th></tr></thead>
+            <tbody id="tbl-dash"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-processos" class="tab-content" style="display:none">
+        <div class="topbar">
+          <div><div class="page-title">Processos</div><div id="proc-count" style="color:var(--muted);font-size:12px">0</div></div>
+          <button class="primary-btn btn-blue" onclick="abrirModalProcesso('novo')">+ Novo Processo</button>
+        </div>
+        <div class="filters">
+          <input class="filter-input" id="f-busca" placeholder="Buscar número, autor, réu..." oninput="renderProcessos()">
+          <select class="filter-select" id="f-autor" onchange="renderProcessos()"><option value="">Todos os autores</option></select>
+          <select class="filter-select" id="f-vara" onchange="renderProcessos()"><option value="">Todas as varas</option></select>
+          <select class="filter-select" id="f-etapa-filtro" onchange="renderProcessos()"><option value="">Todas as etapas</option></select>
+          <select class="filter-select" id="f-prazo-filtro" onchange="renderProcessos()">
+            <option value="">Todos os prazos</option><option value="com_prazo">Com prazo</option>
+            <option value="urgente">⚠ Urgente</option><option value="vencido">🔴 Vencido</option>
+          </select>
+          <button class="btn-clear-filters" onclick="limparFiltros()">✕ Limpar</button>
+        </div>
+        <div id="lista-processos"></div>
+      </div>
+
+      <div id="tab-movimentacoes" class="tab-content" style="display:none">
+        <div class="topbar">
+          <div><div class="page-title">Movimentações</div><div id="mov-count" style="color:var(--muted);font-size:12px">0</div></div>
+          <button class="primary-btn btn-green" onclick="abrirModalMov('')">+ Nova Movimentação</button>
+        </div>
+        <div class="filters">
+          <select class="filter-select" id="fm-processo" onchange="renderMovimentacoes()"><option value="">Todos os processos</option></select>
+          <select class="filter-select" id="fm-autor" onchange="renderMovimentacoes()"><option value="">Todos os autores</option></select>
+          <select class="filter-select" id="fm-vara" onchange="renderMovimentacoes()"><option value="">Todas as varas</option></select>
+          <select class="filter-select" id="fm-tipo" onchange="renderMovimentacoes()"><option value="">Todos os tipos</option></select>
+          <button class="btn-clear-filters" onclick="limparFiltrosMov()">✕ Limpar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Data</th><th>Processo</th><th>Autor</th><th>Tipo</th><th>Etapa / Observação</th><th>Prazo</th><th>Limite</th><th>Ações</th></tr></thead>
+          <tbody id="tbl-movs"></tbody></table>
+        </div>
+      </div>
+
+      <div id="tab-alvaras" class="tab-content" style="display:none">
+        <div class="topbar">
+          <div><div class="page-title">Honorários Periciais</div></div>
+          <button class="primary-btn btn-yellow" onclick="abrirModalAlvara('')">+ Registrar Recebimento</button>
+        </div>
+        <div class="filters">
+          <select class="filter-select" id="fa-processo" onchange="renderAlvaras()"><option value="">Todos os processos</option></select>
+          <select class="filter-select" id="fa-autor" onchange="renderAlvaras()"><option value="">Todos os autores</option></select>
+          <select class="filter-select" id="fa-vara" onchange="renderAlvaras()"><option value="">Todas as varas</option></select>
+          <button class="btn-clear-filters" onclick="limparFiltrosAlv()">✕ Limpar</button>
+        </div>
+        <div class="stats" id="stats-alv"></div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Data</th><th>Processo</th><th>Autor</th><th>% Alv.</th><th>Recebido</th><th>Líquido</th><th>Repasse PA</th><th>Transf. PA</th><th>Ações</th></tr></thead>
+          <tbody id="tbl-alvaras"></tbody></table>
+        </div>
+      </div>
+
+      <div id="tab-config" class="tab-content" style="display:none">
+        <div class="page-title">Configurações</div>
+        <p class="page-sub">Gerenciar peritos, assuntos e teses</p>
+        <div class="topbar"><div style="font-size:13px;font-weight:700">Peritos Assistentes</div><button class="primary-btn btn-blue" onclick="abrirModalPerito('novo')">+ Novo Perito</button></div>
+        <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-peritos"></tbody></table></div>
+        <div class="topbar"><div style="font-size:13px;font-weight:700">Assuntos e Teses</div><button class="primary-btn btn-purple" onclick="abrirModalTese('novo')">+ Nova Tese</button></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODAL PROCESSO -->
+<div class="modal-overlay" id="modal-processo">
+  <div class="modal-box">
+    <div class="modal-head"><div class="modal-title" id="modal-proc-title">Novo Processo</div><button class="modal-close" onclick="fecharModal('modal-processo')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Nº do Processo *</label><input class="field-input" id="f-num"><div id="f-num-aviso" style="display:none;margin-top:4px;color:var(--red);font-size:11px"></div></div>
+      <div class="form-field half"><label class="field-label">Assunto</label><select class="field-select" id="f-assunto"></select></div>
+      <div class="form-field half"><label class="field-label">Perito Assistente</label><select class="field-select" id="f-perito-ass"><option value="">Selecione...</option></select></div>
+      <div class="form-field"><label class="field-label">Autor</label><input class="field-input" id="f-autor-proc"></div>
+      <div class="form-field"><label class="field-label">Réu</label><input class="field-input" id="f-reu"></div>
+      <div class="form-field"><label class="field-label">Vara</label><input class="field-input" id="f-vara-proc"></div>
+      <div class="form-field"><label class="field-label">Juiz</label><input class="field-input" id="f-juiz"></div>
+      <div class="form-field"><label class="field-label">Adv. Autor</label><input class="field-input" id="f-adv-autor"></div>
+      <div class="form-field"><label class="field-label">Adv. Réu</label><input class="field-input" id="f-adv-reu"></div>
+      <div class="form-field half"><label class="field-label">Valor da Causa (R$)</label><input class="field-input" id="f-vlr-causa" type="number" step="0.01"></div>
+      <div class="form-field half"><label class="field-label">Honorários Confirmados (R$)</label><input class="field-input" id="f-vlr-hon" type="number" step="0.01"></div>
+      <div class="form-field half"><label class="field-label">Data de Nomeação</label><input class="field-input" id="f-data-nom" type="date"></div>
+      <div class="form-field half"><label class="check-label" style="padding-top:20px"><input type="checkbox" id="f-gratuidade"> Gratuidade Judiciária</label></div>
+      <div class="form-field"><label class="field-label">Etapa Atual</label><div class="field-readonly" id="f-etapa-display">Apresentar Proposta de Honorários</div><div style="font-size:10px;color:var(--faint);margin-top:3px">⚠ A etapa só pode ser alterada via movimentação</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-processo')">Cancelar</button>
+      <button class="modal-save btn-blue" id="btn-salvar-proc" onclick="salvarProcesso()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMENTAÇÃO -->
+<div class="modal-overlay" id="modal-mov">
+  <div class="modal-box">
+    <div class="modal-head"><div class="modal-title" id="modal-mov-title">Registrar Movimentação</div><button class="modal-close" onclick="fecharModal('modal-mov')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo *</label><select class="field-select" id="m-processo" onchange="onChangeProcMov()"><option value="">Selecione...</option></select></div>
+      <div class="form-field" id="m-etapa-atual-wrap" style="display:none"><label class="field-label">Etapa Atual</label><div class="field-readonly" id="m-etapa-atual-display"></div></div>
+      <div class="form-field"><label class="field-label">Tipo *</label><select class="field-select" id="m-tipo" onchange="onChangeTipoMov()"><option value="Mudança de Etapa">Mudança de Etapa</option><option value="Observação Simples">Observação Simples</option></select></div>
+      <div class="form-field" id="m-nova-etapa-field">
+        <label class="field-label">Nova Etapa *</label>
+        <select class="field-select" id="m-etapa" onchange="onChangeNovaEtapa()"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-field" id="m-vlr-proposta-field" style="display:none">
+        <label class="field-label">Valor da Proposta do Perito (R$)</label>
+        <input class="field-input" id="m-vlr-proposta" type="number" step="0.01">
+      </div>
+      <div class="form-field" id="m-teses-field" style="display:none">
+        <label class="field-label">Teses Pleiteadas</label>
+        <div id="m-teses-checkboxes" class="teses-grid"></div>
+      </div>
+      <div id="m-prazo-wrap" style="display:none;width:100%">
+        <div class="form-grid">
+          <div class="form-field half"><label class="field-label">Data da Intimação *</label><input class="field-input" id="m-data-int" type="date" oninput="calcularDataLimite()"></div>
+          <div class="form-field half"><label class="field-label">Prazo (dias úteis) *</label><input class="field-input" id="m-prazo-dias" type="number" oninput="calcularDataLimite()"></div>
+          <div class="form-field"><label class="field-label">Data Limite (calculada)</label><input class="field-input" id="m-data-lim" type="date" readonly></div>
+        </div>
+      </div>
+      <div id="m-encerrar-dil-wrap" style="display:none;width:100%">
+        <div class="form-grid">
+          <div class="form-field"><label class="field-label">Diligência em aberto desde</label><div class="field-readonly" id="m-dil-inicio-display"></div></div>
+          <div class="form-field"><label class="field-label">Data Fim *</label><input class="field-input" id="m-dil-fim-enc" type="date" oninput="calcularEncerramento()"></div>
+          <div class="form-field" id="m-enc-calc-wrap" style="display:none"><div class="calc-row" id="m-enc-calc"></div></div>
+        </div>
+      </div>
+      <div class="form-field"><label class="field-label">Observação</label><input class="field-input" id="m-obs"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-mov')">Cancelar</button>
+      <button class="modal-save btn-green" id="btn-salvar-mov" onclick="salvarMov()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ALVARÁ -->
+<div class="modal-overlay" id="modal-alv">
+  <div class="modal-box">
+    <div class="modal-head"><div class="modal-title" id="modal-alv-title">Registrar Recebimento</div><button class="modal-close" onclick="fecharModal('modal-alv')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo *</label><select class="field-select" id="a-processo"><option value="">Selecione...</option></select></div>
+      <div class="form-field half"><label class="field-label">% do Alvará</label><input class="field-input" id="a-perc" type="number" value="50"></div>
+      <div class="form-field half"><label class="field-label">Valor Recebido (R$) *</label><input class="field-input" id="a-valor" type="number" step="0.01" oninput="calcularAlvara()"></div>
+      <div class="form-field third"><label class="field-label">% Imposto</label><input class="field-input" id="a-perc-imp" type="number" value="6" step="0.1" oninput="calcularAlvara()"></div>
+      <div class="form-field third"><label class="field-label">% Repasse PA</label><input class="field-input" id="a-perc-pa" type="number" value="50" step="0.1" oninput="calcularAlvara()"></div>
+      <div class="form-field third"><label class="field-label">Data de Recebimento</label><input class="field-input" id="a-data-rec" type="date"></div>
+      <div class="form-field"><label class="field-label">Valores Calculados</label>
+        <div class="calc-row">
+          <div class="calc-item"><span class="calc-item-label">Valor Líquido</span><span class="calc-item-value" id="a-calc-liq">R$ 0,00</span></div>
+          <div class="calc-item"><span class="calc-item-label">Repasse ao PA</span><span class="calc-item-value" style="color:var(--blue)" id="a-calc-pa">R$ 0,00</span></div>
+        </div>
+      </div>
+      <div class="form-field"><label class="field-label">Observação</label><input class="field-input" id="a-obs"></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="a-transf" onchange="toggleTransf()"> Já transferido ao Perito Assistente (PA)</label></div>
+      <div class="form-field" id="a-transf-field" style="display:none"><label class="field-label">Data da Transferência</label><input class="field-input" id="a-data-transf" type="date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-alv')">Cancelar</button>
+      <button class="modal-save btn-yellow" id="btn-salvar-alv" onclick="salvarAlvara()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE -->
+<div class="modal-overlay" id="modal-detalhe">
+  <div class="modal-box wide">
+    <div class="modal-head"><div class="modal-title" id="det-title">Processo</div><button class="modal-close" onclick="fecharModal('modal-detalhe')">✕</button></div>
+    <div id="det-body"></div>
+  </div>
+</div>
+
+<!-- MODAL PERITO -->
+<div class="modal-overlay" id="modal-perito">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><div class="modal-title" id="modal-perito-title">Novo Perito</div><button class="modal-close" onclick="fecharModal('modal-perito')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Nome *</label><input class="field-input" id="p-nome"></div>
+      <div class="form-field"><label class="field-label">E-mail</label><input class="field-input" id="p-email" type="email"></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="p-ativo" checked> Ativo</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-perito')">Cancelar</button>
+      <button class="modal-save btn-blue" id="btn-salvar-perito" onclick="salvarPerito()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TESE -->
+<div class="modal-overlay" id="modal-tese">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><div class="modal-title" id="modal-tese-title">Nova Tese</div><button class="modal-close" onclick="fecharModal('modal-tese')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Assunto *</label><input class="field-input" id="t-assunto"></div>
+      <div class="form-field"><label class="field-label">Tese</label><input class="field-input" id="t-tese"></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="t-ativo" checked> Ativo</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-tese')">Cancelar</button>
+      <button class="modal-save btn-purple" id="btn-salvar-tese" onclick="salvarTese()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-del">
+  <div class="confirm-box">
+    <div class="confirm-title">⚠ Confirmar</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="modal-cancel" onclick="fecharConfirm()">Cancelar</button>
+      <button class="btn-danger" id="btn-confirm-del">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INICIAR DILIGÊNCIA -->
+<div class="modal-overlay" id="modal-dil">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><div class="modal-title">Iniciar Diligência</div><button class="modal-close" onclick="fecharModal('modal-dil')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="dil-proc-display"></div></div>
+      <div class="form-field"><label class="field-label">Data de Início *</label><input class="field-input" id="dil-inicio" type="date"></div>
+      <div class="form-field"><label class="field-label">Observação</label><input class="field-input" id="dil-obs" placeholder="Descreva o motivo da diligência..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-dil')">Cancelar</button>
+      <button class="modal-save btn-orange" style="background:var(--orange-l)" id="btn-salvar-dil" onclick="salvarDiligencia()">💾 Iniciar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID='1080539379296-6slkhm3vgtcp6g7pgk9plqk918ulbnr3.apps.googleusercontent.com';
+const SHEET_ID='1uvApK9wCctjAWGOgH62xA16Gd2aUsCanWFjVIPSWNPw';
+const REDIRECT=location.href.split('?')[0].split('#')[0];
+const SCOPES='https://www.googleapis.com/auth/spreadsheets';
+const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
+const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta"];
+const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro","tem_prazo","data_intimacao","prazo_dias","data_limite","data_inicio_diligencia","data_fim_diligencia","dias_diligencia"];
+const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento","observacao","transferido_pa","data_transferencia","perc_imposto","perc_repasse_pa"];
+const HDR_T=["id","assunto","tese","ativo"];
+const HDR_PE=["id","nome","email","ativo"];
+const ETAPAS=["Apresentar Proposta de Honorários","Proposta de Honorários Apresentada","Apresentar Defesa da Proposta","Defesa da Proposta Apresentada","Apresentar Laudo Pericial","Laudo Pericial Apresentado","Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado","Sentença Proferida","Encerrado"];
+const ETAPAS_COM_PRAZO=new Set(["Apresentar Proposta de Honorários","Apresentar Defesa da Proposta","Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
+const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
+const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
+
+let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[];
+let modoProc='novo';
+let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
+let modoAlv='novo',editAlvIdx=-1;
+let modoTese='novo',editTeseIdx=-1;
+let modoPerito='novo',editPeritoIdx=-1;
+let perfilAtual='';
+
+const uid=()=>Math.random().toString(36).slice(2,10);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');};
+const fmt=v=>{const n=Number(String(v||0).replace(',','.'));return isNaN(n)?'R$ 0,00':n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
+const nv=v=>Number(String(v||0).replace(',','.'))||0;
+const isBool=v=>{if(typeof v==='boolean')return v;if(typeof v==='string')return v.trim().toUpperCase()==='TRUE';return false;};
+const boolStr=v=>v?'TRUE':'FALSE';
+const rowToObj=(h,r)=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return o;};
+const objToRow=(h,o)=>h.map(k=>{const v=o[k]??'';if(v===true||String(v).trim().toUpperCase()==='TRUE')return'TRUE';if(v===false||String(v).trim().toUpperCase()==='FALSE')return'FALSE';return String(v);});
+
+function fmtD(d){
+  if(d===null||d===undefined)return'—';
+  const s=String(d).trim();
+  if(!s||['FALSE','TRUE','undefined','null',''].includes(s))return'—';
+  if(s.includes('/')){const p=s.split('/');if(p.length===3&&p[0].length<=2)return s;return'—';}
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)){try{const datePart=s.slice(0,10);const dt=new Date(datePart+'T12:00:00');if(isNaN(dt.getTime()))return'—';return dt.toLocaleDateString('pt-BR');}catch{return'—';}}
+  return'—';
+}
+
+function addDiasUteis(dataStr,dias){
+  if(!dataStr||!dias||parseInt(dias)<=0)return'';
+  let d;try{if(String(dataStr).includes('/')){const[dd,mm,yyyy]=String(dataStr).split('/');d=new Date(`${yyyy}-${mm}-${dd}T12:00:00`);}else d=new Date(String(dataStr)+'T12:00:00');if(isNaN(d.getTime()))return'';}catch{return'';}
+  let count=0;const total=parseInt(dias);while(count<total){d.setDate(d.getDate()+1);const dow=d.getDay();if(dow!==0&&dow!==6)count++;}
+  return d.toISOString().slice(0,10);
+}
+
+function diasUteisEntre(d1Str,d2Str){
+  if(!d1Str||!d2Str)return 0;
+  try{const d1=new Date(String(d1Str)+'T12:00:00'),d2=new Date(String(d2Str)+'T12:00:00');if(isNaN(d1.getTime())||isNaN(d2.getTime()))return 0;let count=0;const cur=new Date(d1);while(cur<d2){cur.setDate(cur.getDate()+1);const dow=cur.getDay();if(dow!==0&&dow!==6)count++;}return count;}catch{return 0;}
+}
+
+function statusPrazo(s){
+  if(!s||s==='—')return null;
+  let dl;if(String(s).includes('/')){const[dd,mm,yyyy]=String(s).split('/');dl=new Date(`${yyyy}-${mm}-${dd}T12:00:00`);}else dl=new Date(String(s)+'T12:00:00');
+  if(!dl||isNaN(dl.getTime()))return null;
+  const hoje=new Date();hoje.setHours(12,0,0,0);
+  if(dl<hoje)return'vencido';
+  const dias=diasUteisEntre(hoje.toISOString().slice(0,10),dl.toISOString().slice(0,10));
+  if(dias<=5)return'urgente';return'normal';
+}
+
+function prazoBadge(dl){
+  if(!dl||dl==='—')return'';const st=statusPrazo(dl);const d=fmtD(dl);
+  if(st==='vencido')return`<div class="prazo-badge-vencido">🔴 VENCIDO — ${d}</div>`;
+  if(st==='urgente')return`<div class="prazo-badge-urgente">⚠ URGENTE — ${d}</div>`;
+  if(st==='normal')return`<div class="prazo-badge-normal">📅 ${d}</div>`;return'';
+}
+
+function calcDireito(vlrHon,etapa){
+  const idx=ETAPAS.indexOf(etapa);
+  if(idx>=ETAPAS.indexOf('Esclarecimentos Complementares Apresentado'))return nv(vlrHon);
+  if(idx>=ETAPAS.indexOf('Sentença Proferida'))return nv(vlrHon);
+  if(idx>=ETAPAS.indexOf('Laudo Pericial Apresentado'))return nv(vlrHon)*0.5;
+  return 0;
+}
+
+function etapaBadge(e){
+  if(!e||e==='Encerrado')return`<span class="badge badge-gray">${e||'—'}</span>`;
+  if(e==='Sentença Proferida')return`<span class="badge badge-green">${e}</span>`;
+  if(e.startsWith('Apresentar'))return`<span class="badge badge-yellow">${e}</span>`;
+  if(e.includes('Apresentado')||e.includes('Apresentada'))return`<span class="badge badge-blue">${e}</span>`;
+  return`<span class="badge badge-gray">${e}</span>`;
+}
+
+function verificarPodeExcluirMov(m){
+  if(m.tipo==='Diligência')return true;
+  if(m.tipo!=='Mudança de Etapa')return true;
+  // Ordena decrescente por data; desempata pelo índice original no array (maior = mais recente)
+  const movEtapas=movs
+    .map((x,i)=>({...x,_idx:i}))
+    .filter(x=>x.num_processo===m.num_processo&&x.tipo==='Mudança de Etapa'&&x.etapa_nova)
+    .sort((a,b)=>{
+      if(a.data_registro!==b.data_registro)return a.data_registro>b.data_registro?-1:1; // datetime completo garante ordenação correta
+      return b._idx-a._idx;
+    });
+  // Só permite excluir se for a mais recente (primeira da lista ordenada)
+  return movEtapas.length>0&&movEtapas[0].id===m.id;
+}
+
+let toastTimer;
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.style.background=type==='error'?'#ef4444':type==='warn'?'#f59e0b':type==='session'?'#b91c1c':'#10b981';
+  el.onclick=type==='session'?fazerLogin:null;
+  el.classList.add('show');clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),type==='session'?10000:5000);
+}
+
+function showSpinner(msg){document.getElementById('spinMsg').textContent=msg||'Carregando...';document.getElementById('spinner').style.display='flex';document.getElementById('content').style.display='none';}
+function hideSpinner(){document.getElementById('spinner').style.display='none';document.getElementById('content').style.display='block';}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function fazerLogin(){
+  document.getElementById('session-banner').style.display='none';
+  const state=Math.random().toString(36).slice(2);
+  const params=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',scope:SCOPES,state,prompt:'select_account'});
+  const url='https://accounts.google.com/o/oauth2/v2/auth?'+params.toString();
+  const w=500,h=600,left=(screen.width-w)/2,top=(screen.height-h)/2;
+  window.open(url,'google-login',`width=${w},height=${h},left=${left},top=${top}`);
+  window.addEventListener('message',function handler(e){
+    if(e.data&&e.data.type==='oauth_token'){
+      window.removeEventListener('message',handler);
+      accessToken=e.data.token;
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='flex';
+      document.getElementById('userInfo').textContent=e.data.email||'';
+      carregarDados();
+    }
+  });
+}
+
+function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
+
+function handleApiError(status){
+  if(status===401){
+    document.getElementById('session-banner').style.display='block';
+    throw new Error('Sessão expirada. Faça login novamente (clique no aviso vermelho no topo).');
+  }
+  throw new Error('Erro na API ('+status+')');
+}
+
+(function verificarCallback(){
+  const hash=location.hash.substring(1);if(!hash)return;
+  const params=new URLSearchParams(hash);const token=params.get('access_token');
+  if(token){fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()).then(info=>{if(window.opener){window.opener.postMessage({type:'oauth_token',token,email:info.email||''},'*');window.close();}}).catch(()=>{if(window.opener){window.opener.postMessage({type:'oauth_token',token,email:''},'*');window.close();}});}
+  const error=params.get('error');if(error&&window.opener){window.opener.postMessage({type:'oauth_error',error},'*');window.close();}
+})();
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+async function sheetsGet(range){
+  const r=await fetch(`${BASE_URL}/values/${encodeURIComponent(range)}`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  return(await r.json()).values||[];
+}
+async function sheetsAppend(range,values){
+  const r=await fetch(`${BASE_URL}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values})});
+  if(!r.ok)handleApiError(r.status);
+}
+async function sheetsUpdate(range,values){
+  const r=await fetch(`${BASE_URL}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values})});
+  if(!r.ok)handleApiError(r.status);
+}
+const sheetIdCache={};
+async function getSheetId(nome){if(sheetIdCache[nome])return sheetIdCache[nome];const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties`,{headers:{Authorization:`Bearer ${accessToken}`}});const d=await r.json();d.sheets.forEach(s=>sheetIdCache[s.properties.title]=s.properties.sheetId);return sheetIdCache[nome];}
+async function deletarLinha(aba,rowNum){const sheetId=await getSheetId(aba);const r=await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]})});if(!r.ok)handleApiError(r.status);}
+async function lerAba(aba,hdrs){const rows=await sheetsGet(`${aba}!A2:Z`);return rows.filter(r=>r.some(c=>c!=='')).map(r=>rowToObj(hdrs,r));}
+async function encontrarLinha(aba,campo,valor,hdrs){const all=await sheetsGet(`${aba}!A1:Z`);const col=hdrs.indexOf(campo);for(let i=1;i<all.length;i++){if((all[i][col]||'')===String(valor))return i+1;}return -1;}
+
+async function carregarDados(){
+  document.getElementById('btnReload').disabled=true;showSpinner('📋 Lendo processos...');
+  try{
+    processos=await lerAba('processos',HDR_P);showSpinner('📝 Lendo movimentações...');
+    movs=await lerAba('movimentacoes',HDR_M);showSpinner('💰 Lendo honorários...');
+    alvaras=await lerAba('alvaras',HDR_A);showSpinner('⚙ Lendo configurações...');
+    teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);
+    hideSpinner();renderTudo();toast(`✅ ${processos.length} processo(s) carregado(s)!`);
+  }catch(e){hideSpinner();toast('❌ '+e.message,'error');}
+  finally{document.getElementById('btnReload').disabled=false;}
+}
+
+function aplicarFiltroGlobal(){perfilAtual=document.getElementById('perfilSelect').value;renderTudo();}
+function processosFiltradosPorPerfil(){return perfilAtual?processos.filter(p=>p.perito_assistente===perfilAtual):processos;}
+function switchTab(tab){document.querySelectorAll('.tab-content').forEach(el=>el.style.display='none');document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));document.getElementById('tab-'+tab).style.display='block';document.querySelector(`[data-tab="${tab}"]`).classList.add('active');}
+function renderTudo(){renderDashboard();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();}
+function popularPerfilSelect(){const sel=document.getElementById('perfilSelect');const val=sel.value;sel.innerHTML='<option value="">Coordenador Geral</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');sel.value=val;}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const procs=processosFiltradosPorPerfil();
+  document.getElementById('dash-sub').textContent=perfilAtual?`Perito: ${perfilAtual}`:'Coordenador Geral';
+  const ativos=procs.filter(p=>p.etapa_atual!=='Encerrado').length;
+  const urgentes=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente').length;
+  const vencidos=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido').length;
+  const emDil=procs.filter(p=>isBool(p.em_diligencia)).length;
+  const alvP=alvaras.filter(a=>procs.some(p=>p.num===a.num_processo));
+  const totalRec=alvP.reduce((s,a)=>s+nv(a.vlr_recebido),0);
+  const totalDir=procs.reduce((s,p)=>s+calcDireito(p.vlr_honorario,p.etapa_atual),0);
+  const saldo=Math.max(0,totalDir-totalRec);
+  const totalPA=alvP.filter(a=>!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+  document.getElementById('stats-dash').innerHTML=`
+    <div class="stat-card blue"><div class="stat-label">Total Processos</div><div class="stat-value">${procs.length}</div><div class="stat-sub">${ativos} ativos</div></div>
+    <div class="stat-card yellow"><div class="stat-label">⚠ Urgentes</div><div class="stat-value">${urgentes}</div></div>
+    <div class="stat-card red"><div class="stat-label">🔴 Vencidos</div><div class="stat-value">${vencidos}</div></div>
+    <div class="stat-card orange"><div class="stat-label">🔄 Em Diligência</div><div class="stat-value">${emDil}</div></div>`;
+  document.getElementById('stats-fin').innerHTML=`
+    <div class="stat-card green"><div class="stat-label">Honorários Confirmados</div><div class="stat-value" style="font-size:15px">${fmt(procs.reduce((s,p)=>s+nv(p.vlr_honorario),0))}</div></div>
+    <div class="stat-card blue"><div class="stat-label">Com Direito de Recebimento</div><div class="stat-value" style="font-size:15px">${fmt(totalDir)}</div></div>
+    <div class="stat-card purple"><div class="stat-label">Recebido</div><div class="stat-value" style="font-size:15px">${fmt(totalRec)}</div></div>
+    <div class="stat-card red"><div class="stat-label">Saldo a Receber</div><div class="stat-value" style="font-size:15px">${fmt(saldo)}</div></div>
+    <div class="stat-card orange"><div class="stat-label">A Transferir ao PA</div><div class="stat-value" style="font-size:15px">${fmt(totalPA)}</div></div>`;
+  const tb=document.getElementById('tbl-dash');
+  const atv=procs.filter(p=>p.etapa_atual!=='Encerrado').sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
+  if(!atv.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum processo ativo.</td></tr>';return;}
+  tb.innerHTML=atv.map(p=>{
+    const aP=alvaras.filter(a=>a.num_processo===p.num);
+    const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);
+    return`<tr><td class="mono">${p.num}</td><td>${p.autor}</td>
+      <td><span class="badge badge-purple">${p.assunto}</span>${p.teses?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${p.teses}</div>`:''}</td>
+      <td>${etapaBadge(p.etapa_atual)}${isBool(p.em_diligencia)?'<div class="diligencia-badge" style="margin-top:3px">🔄 Diligência</div>':''}</td>
+      <td style="font-size:11px">${p.perito_assistente||'—'}</td>
+      <td>${p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):'—'}</td>
+      <td style="font-size:11px"><div style="color:var(--blue)">Dir: ${fmt(dir)}</div><div style="color:var(--muted)">Rec: ${fmt(rec)}</div><div style="color:${sal>0?'var(--red-l)':'var(--green)'}">Sal: ${fmt(sal)}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── PROCESSOS ────────────────────────────────────────────────────────────────
+function renderProcessos(){
+  const base=processosFiltradosPorPerfil();
+  const busca=(document.getElementById('f-busca')||{value:''}).value.toLowerCase();
+  const fAutor=(document.getElementById('f-autor')||{value:''}).value;
+  const fVara=(document.getElementById('f-vara')||{value:''}).value;
+  const fEtapa=(document.getElementById('f-etapa-filtro')||{value:''}).value;
+  const fPrazo=(document.getElementById('f-prazo-filtro')||{value:''}).value;
+  let fil=base.filter(p=>{
+    if(busca&&![p.num,p.autor,p.reu,p.assunto].join(' ').toLowerCase().includes(busca))return false;
+    if(fAutor&&p.autor!==fAutor)return false;
+    if(fVara&&p.vara!==fVara)return false;
+    if(fEtapa&&p.etapa_atual!==fEtapa)return false;
+    if(fPrazo){const st=statusPrazo(p.data_limite_etapa_atual);if(fPrazo==='com_prazo'&&!p.data_limite_etapa_atual)return false;if(fPrazo==='urgente'&&st!=='urgente')return false;if(fPrazo==='vencido'&&st!=='vencido')return false;}
+    return true;
+  });
+  // Ordenar por autor A→Z
+  fil.sort((a,b)=>a.autor.localeCompare(b.autor,'pt-BR'));
+  document.getElementById('proc-count').textContent=base.length+' processo(s)';
+  const lista=document.getElementById('lista-processos');
+  if(!fil.length){lista.innerHTML='<div style="text-align:center;padding:36px;color:var(--faint)">Nenhum processo encontrado.</div>';return;}
+  lista.innerHTML=fil.map(p=>{
+    const mP=movs.filter(m=>m.num_processo===p.num);
+    const aP=alvaras.filter(a=>a.num_processo===p.num);
+    const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);
+    const dir=calcDireito(p.vlr_honorario,p.etapa_atual);
+    const sal=Math.max(0,dir-rec);
+    const hon=nv(p.vlr_honorario);
+    // Barra: soma dos % de alvará
+    const pctAlv=Math.min(100,aP.reduce((s,a)=>s+nv(a.perc_alvara),0));
+    const paTransf=aP.filter(a=>!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+    const dilAtiva=isBool(p.em_diligencia);
+    const encerrado=p.etapa_atual==='Encerrado';
+    const st=statusPrazo(p.data_limite_etapa_atual);
+    const idxAtual=ETAPAS.indexOf(p.etapa_atual);
+    let cardClass='proc-card';
+    if(dilAtiva)cardClass+=' diligencia';
+    else if(st==='vencido')cardClass+=' prazo-vencido';
+    else if(st==='urgente')cardClass+=' prazo-urgente';
+    else if(encerrado)cardClass+=' encerrado';
+    const etapasExib=ETAPAS.filter(e=>e!=='Encerrado');
+    const timeline=etapasExib.map((e,i)=>`<div class="etapa-step ${i<idxAtual?'done':i===idxAtual?'current':''}" ><span class="tip">${i+1}. ${e}</span></div>`).join('');
+    return`<div class="${cardClass}">
+      <div class="proc-head">
+        <div class="proc-left">
+          <div class="proc-badges">
+            <span class="mono">${p.num}</span>
+            <span class="badge badge-purple">${p.assunto||'—'}</span>
+            ${etapaBadge(p.etapa_atual)}
+
+            ${dilAtiva?'<div class="diligencia-badge">🔄 Em Diligência</div>':''}
+            ${!dilAtiva&&p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):''}
+            ${encerrado?'<span class="badge badge-green">✓ Encerrado</span>':''}
+          </div>
+          <div class="proc-autor">${p.autor}</div>
+          <div class="proc-reu">✕ ${p.reu}</div>
+          ${p.teses?`<div style="font-size:10px;color:var(--purple);margin-bottom:4px">Teses: ${p.teses}</div>`:''}
+          <div class="proc-meta"><span>⚖ ${p.vara}</span><span>👨‍⚖️ ${p.juiz}</span><span>👤 ${p.perito_assistente||'—'}</span></div>
+          <div class="etapa-indicator">${timeline}</div>
+        </div>
+        <div class="proc-right">
+          <div class="fin-grid" style="grid-template-columns:1fr 1fr;gap:6px">
+            <div class="fin-card"><div class="fin-card-label">Honorários Confirmados</div><div class="fin-card-value green">${fmt(hon)}</div></div>
+            <div class="fin-card"><div class="fin-card-label">Com Direito de Recebimento</div><div class="fin-card-value blue">${fmt(dir)}</div></div>
+            <div class="fin-card"><div class="fin-card-label">Recebido</div><div class="fin-card-value orange">${fmt(rec)}</div></div>
+            <div class="fin-card"><div class="fin-card-label">Saldo</div><div class="fin-card-value ${sal>0?'red':'green'}">${fmt(sal)}</div></div>
+            ${paTransf>0?`<div class="fin-card" style="grid-column:span 2"><div class="fin-card-label">A Transferir ao PA</div><div class="fin-card-value purple">${fmt(paTransf)}</div></div>`:''}
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">${mP.length} mov. | ${aP.length} alv.</div>
+        </div>
+      </div>
+      <div class="proc-actions">
+        <button class="act-btn act-gray" onclick="verDetalhe('${p.num}')">Ver detalhes</button>
+        <button class="act-btn act-blue" onclick="abrirModalProcesso('editar','${p.num}')">Editar</button>
+        <button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button>
+        <button class="act-btn act-yellow" onclick="abrirModalAlvara('${p.num}')">+ Alvará</button>
+        ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
+        ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
+        ${!encerrado?`<button class="act-btn act-red" onclick="confirmarExcluirProcesso('${p.num}')">Excluir</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── MOVIMENTAÇÕES ────────────────────────────────────────────────────────────
+function renderMovimentacoes(){
+  const base=processosFiltradosPorPerfil();const numBase=new Set(base.map(p=>p.num));
+  const fProc=(document.getElementById('fm-processo')||{value:''}).value;
+  const fAutor=(document.getElementById('fm-autor')||{value:''}).value;
+  const fVara=(document.getElementById('fm-vara')||{value:''}).value;
+  const fTipo=(document.getElementById('fm-tipo')||{value:''}).value;
+  const fil=[...movs].reverse().filter(m=>{
+    if(!numBase.has(m.num_processo))return false;
+    if(fProc&&m.num_processo!==fProc)return false;
+    if(fTipo&&m.tipo!==fTipo)return false;
+    if(fAutor||fVara){const p=processos.find(x=>x.num===m.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
+    return true;
+  });
+  document.getElementById('mov-count').textContent=movs.length+' registro(s)';
+  const tb=document.getElementById('tbl-movs');
+  if(!fil.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Nenhuma movimentação.</td></tr>';return;}
+  const origIdxMap=new Map([...movs].reverse().map((m,i)=>[m.id,movs.length-1-i]));
+  tb.innerHTML=fil.map(m=>{
+    const p=processos.find(x=>x.num===m.num_processo);
+    const origIdx=origIdxMap.get(m.id);
+    const isDil=m.tipo==='Diligência';
+    const dilAberta=isDil&&m.data_inicio_diligencia&&!m.data_fim_diligencia;
+    const podeExcluir=verificarPodeExcluirMov(m);
+    return`<tr ${dilAberta?'style="background:#fff7ed"':''}>
+      <td style="color:var(--muted)">${fmtD(m.data_registro)}</td>
+      <td class="mono">${m.num_processo||'—'}</td>
+      <td style="font-size:11px">${p?p.autor:'—'}</td>
+      <td><span class="badge ${isDil?'badge-orange':m.tipo==='Mudança de Etapa'?'badge-blue':'badge-gray'}">${m.tipo}</span></td>
+      <td>
+        ${m.etapa_nova?`<div style="font-weight:600;font-size:11px">${m.etapa_nova}</div>`:''}
+        ${m.observacao?`<div style="color:var(--muted);font-size:11px">${m.observacao}</div>`:''}
+        ${isDil?`<div style="font-size:10px;color:var(--orange)">Início: ${fmtD(m.data_inicio_diligencia)} ${m.data_fim_diligencia?'/ Fim: '+fmtD(m.data_fim_diligencia):'— <b>Em aberto</b>'} ${m.dias_diligencia?'('+m.dias_diligencia+' dias úteis)':''}</div>`:''}
+      </td>
+      <td>${isBool(m.tem_prazo)?`<span class="badge badge-yellow">${m.prazo_dias}d úteis</span>`:'—'}</td>
+      <td style="font-size:11px">${fmtD(m.data_limite)}</td>
+      <td style="white-space:nowrap">
+        ${!isDil?`<button class="act-btn act-blue" onclick="abrirEditarMov(${origIdx})">Editar</button>`:''}
+        ${podeExcluir?`<button class="act-btn act-red" onclick="confirmarExcluirMov(${origIdx})">Excluir</button>`:`<span style="font-size:10px;color:var(--faint)" title="Há etapas posteriores">🔒</span>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── ALVARÁS ──────────────────────────────────────────────────────────────────
+function renderAlvaras(){
+  const base=processosFiltradosPorPerfil();const numBase=new Set(base.map(p=>p.num));
+  const fProc=(document.getElementById('fa-processo')||{value:''}).value;
+  const fAutor=(document.getElementById('fa-autor')||{value:''}).value;
+  const fVara=(document.getElementById('fa-vara')||{value:''}).value;
+  const fil=alvaras.filter(a=>{
+    if(!numBase.has(a.num_processo))return false;
+    if(fProc&&a.num_processo!==fProc)return false;
+    if(fAutor||fVara){const p=processos.find(x=>x.num===a.num_processo);if(!p)return false;if(fAutor&&p.autor!==fAutor)return false;if(fVara&&p.vara!==fVara)return false;}
+    return true;
+  });
+  const totalRec=fil.reduce((s,a)=>s+nv(a.vlr_recebido),0);
+  const totalLiq=fil.reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;return s+nv(a.vlr_recebido)*(1-imp/100);},0);
+  const totalPA=fil.reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+  const totalPAT=fil.filter(a=>isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+  document.getElementById('stats-alv').innerHTML=`
+    <div class="stat-card green"><div class="stat-label">Total Recebido</div><div class="stat-value" style="font-size:16px">${fmt(totalRec)}</div></div>
+    <div class="stat-card blue"><div class="stat-label">Total Líquido</div><div class="stat-value" style="font-size:16px">${fmt(totalLiq)}</div></div>
+    <div class="stat-card yellow"><div class="stat-label">Repasse Total PA</div><div class="stat-value" style="font-size:16px">${fmt(totalPA)}</div></div>
+    <div class="stat-card purple"><div class="stat-label">PA Transferido</div><div class="stat-value" style="font-size:16px">${fmt(totalPAT)}</div></div>
+    <div class="stat-card orange"><div class="stat-label">A Transferir ao PA</div><div class="stat-value" style="font-size:16px">${fmt(totalPA-totalPAT)}</div></div>`;
+  const tb=document.getElementById('tbl-alvaras');
+  if(!fil.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Nenhum registro.</td></tr>';return;}
+  tb.innerHTML=fil.map(a=>{
+    const realIdx=alvaras.indexOf(a);const p=processos.find(x=>x.num===a.num_processo);
+    const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;
+    const liq=nv(a.vlr_recebido)*(1-imp/100);const pa=liq*(rep/100);
+    return`<tr>
+      <td style="color:var(--muted)">${fmtD(a.data_recebimento)}</td>
+      <td class="mono">${a.num_processo||'—'}</td>
+      <td style="font-size:11px">${p?p.autor:'—'}</td>
+      <td>${a.perc_alvara}%</td>
+      <td style="font-weight:700;color:var(--green)">${fmt(a.vlr_recebido)}</td>
+      <td style="color:var(--blue)">${fmt(liq)}<div style="font-size:9px;color:var(--muted)">${imp}% imp.</div></td>
+      <td style="color:var(--yellow)">${fmt(pa)}<div style="font-size:9px;color:var(--muted)">${rep}% PA</div></td>
+      <td>${isBool(a.transferido_pa)?'<span class="badge badge-green">✓ Sim</span>':'<span class="badge badge-yellow">Pendente</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="act-btn act-blue" onclick="abrirEditarAlvara(${realIdx})">Editar</button>
+        <button class="act-btn act-red" onclick="confirmarExcluirAlvara(${realIdx})">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
+function renderConfig(){
+  document.getElementById('tbl-peritos').innerHTML=peritos.length?peritos.map((p,i)=>`<tr><td style="font-weight:600">${p.nome}</td><td style="color:var(--muted)">${p.email||'—'}</td><td>${isBool(p.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalPerito('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirPerito(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhum perito cadastrado.</td></tr>';
+  document.getElementById('tbl-config').innerHTML=teses.length?teses.map((t,i)=>`<tr><td><span class="badge badge-purple">${t.assunto}</span></td><td>${t.tese||'—'}</td><td>${isBool(t.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalTese('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirTese(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhuma tese cadastrada.</td></tr>';
+}
+
+// ─── FILTROS ──────────────────────────────────────────────────────────────────
+function popularFiltros(){
+  const base=processosFiltradosPorPerfil();
+  const autores=[...new Set(base.map(p=>p.autor).filter(Boolean))].sort();
+  const varas=[...new Set(base.map(p=>p.vara).filter(Boolean))].sort();
+  const nums=[...new Set(base.map(p=>p.num).filter(Boolean))].sort();
+  const setOpts=(id,items,label)=>{const el=document.getElementById(id);if(!el)return;const val=el.value;el.innerHTML=`<option value="">${label}</option>`+items.map(i=>`<option value="${i}">${i}</option>`).join('');el.value=val;};
+  setOpts('f-autor',autores,'Todos os autores');setOpts('f-vara',varas,'Todas as varas');setOpts('f-etapa-filtro',ETAPAS,'Todas as etapas');
+  setOpts('fm-processo',nums,'Todos os processos');setOpts('fm-autor',autores,'Todos os autores');setOpts('fm-vara',varas,'Todas as varas');setOpts('fm-tipo',['Mudança de Etapa','Observação Simples','Diligência'],'Todos os tipos');
+  setOpts('fa-processo',nums,'Todos os processos');setOpts('fa-autor',autores,'Todos os autores');setOpts('fa-vara',varas,'Todas as varas');
+  const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
+  const selA=document.getElementById('f-assunto');if(selA)selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
+  const selP=document.getElementById('f-perito-ass');if(selP)selP.innerHTML='<option value="">Selecione...</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');
+  const optsProc='<option value="">Selecione...</option>'+base.map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
+  document.getElementById('m-processo').innerHTML=optsProc;document.getElementById('a-processo').innerHTML=optsProc;
+}
+function limparFiltros(){['f-busca','f-autor','f-vara','f-etapa-filtro','f-prazo-filtro'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderProcessos();}
+function limparFiltrosMov(){['fm-processo','fm-autor','fm-vara','fm-tipo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderMovimentacoes();}
+function limparFiltrosAlv(){['fa-processo','fa-autor','fa-vara'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderAlvaras();}
+
+// ─── TESES ────────────────────────────────────────────────────────────────────
+function carregarTesesParaMov(assunto,selecionadas=[]){
+  const lista=teses.filter(t=>t.assunto===assunto&&isBool(t.ativo));
+  const container=document.getElementById('m-teses-checkboxes');
+  if(!lista.length){container.innerHTML='<span style="color:var(--faint);font-size:11px">Nenhuma tese cadastrada para este assunto.</span>';return;}
+  container.innerHTML=lista.map(t=>`<span class="tese-chip${selecionadas.includes(t.tese)?' selected':''}" data-tese="${t.tese}" onclick="toggleTese(this)">${t.tese}</span>`).join('');
+}
+function toggleTese(el){el.classList.toggle('selected');}
+function getTesesSelecionadas(){return[...document.querySelectorAll('#m-teses-checkboxes .tese-chip.selected')].map(el=>el.dataset.tese);}
+
+// ─── MODAIS ───────────────────────────────────────────────────────────────────
+function abrirModal(id){document.getElementById(id).classList.add('open');}
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)fecharModal(el.id);}));
+
+// PROCESSO
+function abrirModalProcesso(modo,num){
+  modoProc=modo;
+  document.getElementById('modal-proc-title').textContent=modo==='novo'?'Novo Processo':'Editar Processo';
+  document.getElementById('f-num').disabled=(modo==='editar');
+  document.getElementById('f-num-aviso').style.display='none';
+  const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
+  const selA=document.getElementById('f-assunto');selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
+  if(modo==='novo'){
+    ['f-num','f-autor-proc','f-reu','f-vara-proc','f-juiz','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-perito-ass').value='';document.getElementById('f-data-nom').value='';document.getElementById('f-gratuidade').checked=false;
+    document.getElementById('f-etapa-display').textContent='Apresentar Proposta de Honorários';
+  }else{
+    const p=processos.find(x=>x.num===num);if(!p)return;
+    document.getElementById('f-num').value=p.num;document.getElementById('f-autor-proc').value=p.autor;document.getElementById('f-reu').value=p.reu;
+    selA.value=p.assunto||'';document.getElementById('f-vara-proc').value=p.vara;document.getElementById('f-juiz').value=p.juiz;
+    document.getElementById('f-adv-autor').value=p.adv_autor;document.getElementById('f-adv-reu').value=p.adv_reu;
+    document.getElementById('f-vlr-causa').value=String(p.vlr_causa).replace(',','.');document.getElementById('f-vlr-hon').value=String(p.vlr_honorario).replace(',','.');
+    document.getElementById('f-data-nom').value=p.data_nomeacao||'';document.getElementById('f-gratuidade').checked=isBool(p.gratuidade);
+    document.getElementById('f-perito-ass').value=p.perito_assistente||'';document.getElementById('f-etapa-display').textContent=p.etapa_atual||'Apresentar Proposta de Honorários';
+  }
+  abrirModal('modal-processo');
+}
+
+// MOVIMENTAÇÃO
+function popularEtapasDisponiveis(num,etapaAtual){
+  const sel=document.getElementById('m-etapa');
+  const idxAtual=ETAPAS.indexOf(etapaAtual);
+  sel.innerHTML='<option value="">Selecione...</option>';
+  ETAPAS.filter(e=>e!=='Encerrado').forEach((e,i)=>{
+    const isRepetivel=ETAPAS_REPETIVEL.has(e);
+    // Mostra etapas posteriores + repetíveis
+    if(isRepetivel||i>idxAtual){
+      sel.innerHTML+=`<option value="${e}">${i+1}. ${e}</option>`;
+    }
+  });
+}
+
+function resetModalMov(){
+  document.getElementById('m-etapa').value='';document.getElementById('m-etapa').disabled=false;document.getElementById('m-obs').value='';
+  document.getElementById('m-data-int').value='';document.getElementById('m-prazo-dias').value='';document.getElementById('m-data-lim').value='';
+  document.getElementById('m-dil-fim-enc').value='';
+  document.getElementById('m-prazo-wrap').style.display='none';
+  document.getElementById('m-encerrar-dil-wrap').style.display='none';
+  document.getElementById('m-nova-etapa-field').style.display='block';
+  document.getElementById('m-teses-field').style.display='none';
+  document.getElementById('m-vlr-proposta-field').style.display='none';
+  document.getElementById('m-enc-calc-wrap').style.display='none';
+  document.getElementById('m-etapa-atual-wrap').style.display='none';
+  document.getElementById('m-vlr-proposta').value='';
+}
+
+function abrirModalMov(numProcesso){
+  modoMov='novo';editMovIdx=-1;modoEncerrarDil=false;numProcDil='';
+  document.getElementById('modal-mov-title').textContent='Registrar Movimentação';
+  document.getElementById('m-tipo').value='Mudança de Etapa';document.getElementById('m-tipo').disabled=false;
+  resetModalMov();
+  document.getElementById('m-processo').value=numProcesso||'';
+  if(numProcesso)onChangeProcMov();
+  abrirModal('modal-mov');
+}
+
+// INICIAR DILIGÊNCIA - modal próprio
+function abrirIniciarDiligencia(num){
+  numProcDil=num;
+  const p=processos.find(x=>x.num===num);
+  document.getElementById('dil-proc-display').textContent=`${num} — ${p?p.autor:''}`;
+  document.getElementById('dil-inicio').value='';
+  document.getElementById('dil-obs').value='';
+  abrirModal('modal-dil');
+}
+
+async function salvarDiligencia(){
+  const ini=document.getElementById('dil-inicio').value;
+  if(!ini){toast('Informe a data de início da diligência.','warn');return;}
+  const btn=document.getElementById('btn-salvar-dil');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    const obj={id:uid(),num_processo:numProcDil,tipo:'Diligência',etapa_nova:'',observacao:document.getElementById('dil-obs').value,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:ini,data_fim_diligencia:'',dias_diligencia:''};
+    await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,obj)]);movs.push(obj);
+    const p=processos.find(x=>x.num===numProcDil);
+    if(p){const upd={...p,em_diligencia:'TRUE'};const rn=await encontrarLinha('processos','num',numProcDil,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+    toast('✅ Diligência iniciada!');fecharModal('modal-dil');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Iniciar';}
+}
+
+function encerrarDiligencia(num){
+  const movDil=movs.find(m=>{
+    if(m.num_processo!==num||m.tipo!=='Diligência')return false;
+    const ini=String(m.data_inicio_diligencia||'').trim();
+    const fim=String(m.data_fim_diligencia||'').trim();
+    return ini&&!['','FALSE','TRUE','undefined','null'].includes(ini)&&['','FALSE','undefined','null'].includes(fim);
+  });
+  if(!movDil){toast('Movimentação de diligência em aberto não encontrada.','error');return;}
+  const movIdx=movs.indexOf(movDil);
+  modoMov='editar';editMovIdx=movIdx;modoEncerrarDil=true;numProcDil=num;
+  document.getElementById('modal-mov-title').textContent='Encerrar Diligência';
+  document.getElementById('m-processo').value=num;document.getElementById('m-tipo').disabled=true;
+  resetModalMov();
+  document.getElementById('m-nova-etapa-field').style.display='none';
+  document.getElementById('m-encerrar-dil-wrap').style.display='block';
+  document.getElementById('m-dil-inicio-display').textContent=fmtD(movDil.data_inicio_diligencia);
+  const p=processos.find(x=>x.num===num);
+  if(p){document.getElementById('m-etapa-atual-display').textContent=p.etapa_atual||'—';document.getElementById('m-etapa-atual-wrap').style.display='block';}
+  abrirModal('modal-mov');
+}
+
+function onChangeProcMov(){
+  const num=document.getElementById('m-processo').value;
+  const p=processos.find(x=>x.num===num);
+  if(p){
+    document.getElementById('m-etapa-atual-display').textContent=p.etapa_atual||'—';
+    document.getElementById('m-etapa-atual-wrap').style.display='block';
+    if(modoMov==='novo')popularEtapasDisponiveis(num,p.etapa_atual);
+  }else document.getElementById('m-etapa-atual-wrap').style.display='none';
+}
+
+function onChangeTipoMov(){
+  const tipo=document.getElementById('m-tipo').value;
+  document.getElementById('m-nova-etapa-field').style.display=tipo==='Mudança de Etapa'?'block':'none';
+  document.getElementById('m-prazo-wrap').style.display='none';
+  document.getElementById('m-teses-field').style.display='none';
+  document.getElementById('m-vlr-proposta-field').style.display='none';
+  if(tipo!=='Mudança de Etapa')document.getElementById('m-etapa').value='';
+}
+
+function onChangeNovaEtapa(){
+  const etapa=document.getElementById('m-etapa').value;
+  const num=document.getElementById('m-processo').value;
+  document.getElementById('m-prazo-wrap').style.display=ETAPAS_COM_PRAZO.has(etapa)?'block':'none';
+  if(etapa==='Laudo Pericial Apresentado'){
+    const p=processos.find(x=>x.num===num);
+    const sel=p?(p.teses||'').split(',').map(s=>s.trim()).filter(Boolean):[];
+    carregarTesesParaMov(p?p.assunto:'',sel);
+    document.getElementById('m-teses-field').style.display='block';
+  }else document.getElementById('m-teses-field').style.display='none';
+  if(etapa==='Proposta de Honorários Apresentada'){
+    const p=processos.find(x=>x.num===num);
+    document.getElementById('m-vlr-proposta').value=p?String(p.vlr_proposta||'').replace(',','.') :'';
+    document.getElementById('m-vlr-proposta-field').style.display='block';
+  }else document.getElementById('m-vlr-proposta-field').style.display='none';
+}
+
+function calcularDataLimite(){
+  const dataInt=document.getElementById('m-data-int').value;const dias=parseInt(document.getElementById('m-prazo-dias').value)||0;
+  if(dataInt&&dias>0)document.getElementById('m-data-lim').value=addDiasUteis(dataInt,dias)||'';
+}
+
+function calcularEncerramento(){
+  if(!modoEncerrarDil||editMovIdx<0)return;
+  const movDil=movs[editMovIdx];const fim=document.getElementById('m-dil-fim-enc').value;
+  if(movDil&&fim){
+    const dias=diasUteisEntre(movDil.data_inicio_diligencia,fim);
+    const p=processos.find(x=>x.num===numProcDil);
+    let novaData='';if(p&&p.data_limite_etapa_atual)novaData=addDiasUteis(p.data_limite_etapa_atual,dias);
+    document.getElementById('m-enc-calc').innerHTML=`
+      <div class="calc-item"><span class="calc-item-label">Dias Úteis em Diligência</span><span class="calc-item-value">${dias} dias</span></div>
+      ${novaData?`<div class="calc-item"><span class="calc-item-label">Nova Data Limite</span><span class="calc-item-value">${fmtD(novaData)}</span></div>`:''}`;
+    document.getElementById('m-enc-calc-wrap').style.display='block';
+  }else document.getElementById('m-enc-calc-wrap').style.display='none';
+}
+
+function abrirEditarMov(idx){
+  modoMov='editar';editMovIdx=idx;modoEncerrarDil=false;
+  const m=movs[idx];
+  document.getElementById('modal-mov-title').textContent='Editar Movimentação';
+  document.getElementById('m-processo').value=m.num_processo;
+  document.getElementById('m-tipo').value=m.tipo;document.getElementById('m-tipo').disabled=true;
+  resetModalMov();onChangeProcMov();
+  document.getElementById('m-etapa').value=m.etapa_nova||'';document.getElementById('m-etapa').disabled=true;
+  document.getElementById('m-obs').value=m.observacao||'';
+  document.getElementById('m-data-int').value=m.data_intimacao||'';
+  document.getElementById('m-prazo-dias').value=m.prazo_dias||'';
+  document.getElementById('m-data-lim').value=m.data_limite||'';
+  if(isBool(m.tem_prazo))document.getElementById('m-prazo-wrap').style.display='block';
+  if(m.etapa_nova==='Laudo Pericial Apresentado'){
+    const p=processos.find(x=>x.num===m.num_processo);
+    const sel=p?(p.teses||'').split(',').map(s=>s.trim()).filter(Boolean):[];
+    carregarTesesParaMov(p?p.assunto:'',sel);
+    document.getElementById('m-teses-field').style.display='block';
+  }
+  if(m.etapa_nova==='Proposta de Honorários Apresentada'){
+    const p=processos.find(x=>x.num===m.num_processo);
+    document.getElementById('m-vlr-proposta').value=p?String(p.vlr_proposta||'').replace(',','.') :'';
+    document.getElementById('m-vlr-proposta-field').style.display='block';
+  }
+  abrirModal('modal-mov');
+}
+
+// ALVARÁ
+function calcularAlvara(){
+  const vlr=nv(document.getElementById('a-valor').value);const imp=nv(document.getElementById('a-perc-imp').value)||6;const rep=nv(document.getElementById('a-perc-pa').value)||50;
+  document.getElementById('a-calc-liq').textContent=fmt(vlr*(1-imp/100));document.getElementById('a-calc-pa').textContent=fmt(vlr*(1-imp/100)*(rep/100));
+}
+function abrirModalAlvara(num){
+  modoAlv='novo';editAlvIdx=-1;document.getElementById('modal-alv-title').textContent='Registrar Recebimento';
+  document.getElementById('a-processo').value=num||'';document.getElementById('a-processo').disabled=false;
+  ['a-valor','a-data-rec','a-obs','a-data-transf'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('a-perc').value='50';document.getElementById('a-perc-imp').value='6';document.getElementById('a-perc-pa').value='50';
+  document.getElementById('a-transf').checked=false;document.getElementById('a-transf-field').style.display='none';
+  document.getElementById('a-calc-liq').textContent='R$ 0,00';document.getElementById('a-calc-pa').textContent='R$ 0,00';
+  abrirModal('modal-alv');
+}
+function abrirEditarAlvara(idx){
+  modoAlv='editar';editAlvIdx=idx;const a=alvaras[idx];document.getElementById('modal-alv-title').textContent='Editar Alvará';
+  document.getElementById('a-processo').value=a.num_processo;document.getElementById('a-processo').disabled=true; // bloqueia processo na edição
+  document.getElementById('a-perc').value=a.perc_alvara;
+  document.getElementById('a-valor').value=String(a.vlr_recebido).replace(',','.');document.getElementById('a-perc-imp').value=a.perc_imposto||'6';document.getElementById('a-perc-pa').value=a.perc_repasse_pa||'50';
+  document.getElementById('a-data-rec').value=a.data_recebimento||'';document.getElementById('a-obs').value=a.observacao||'';
+  const tr=isBool(a.transferido_pa);document.getElementById('a-transf').checked=tr;document.getElementById('a-transf-field').style.display=tr?'block':'none';
+  document.getElementById('a-data-transf').value=a.data_transferencia||'';calcularAlvara();abrirModal('modal-alv');
+}
+function toggleTransf(){document.getElementById('a-transf-field').style.display=document.getElementById('a-transf').checked?'block':'none';}
+
+// PERITO / TESE
+function abrirModalPerito(modo,idx){modoPerito=modo;editPeritoIdx=idx??-1;document.getElementById('modal-perito-title').textContent=modo==='novo'?'Novo Perito':'Editar Perito';if(modo==='novo'){document.getElementById('p-nome').value='';document.getElementById('p-email').value='';document.getElementById('p-ativo').checked=true;}else{const p=peritos[idx];document.getElementById('p-nome').value=p.nome;document.getElementById('p-email').value=p.email||'';document.getElementById('p-ativo').checked=isBool(p.ativo);}abrirModal('modal-perito');}
+function abrirModalTese(modo,idx){modoTese=modo;editTeseIdx=idx??-1;document.getElementById('modal-tese-title').textContent=modo==='novo'?'Nova Tese':'Editar Tese';if(modo==='novo'){document.getElementById('t-assunto').value='';document.getElementById('t-tese').value='';document.getElementById('t-ativo').checked=true;}else{const t=teses[idx];document.getElementById('t-assunto').value=t.assunto;document.getElementById('t-tese').value=t.tese||'';document.getElementById('t-ativo').checked=isBool(t.ativo);}abrirModal('modal-tese');}
+
+// ─── DETALHE ─────────────────────────────────────────────────────────────────
+function verDetalhe(num){
+  const p=processos.find(x=>x.num===num);if(!p)return;
+  const aP=alvaras.filter(a=>a.num_processo===num);
+  const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);const dir=calcDireito(p.vlr_honorario,p.etapa_atual);const sal=Math.max(0,dir-rec);
+  const paPend=aP.filter(a=>!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
+  const hist=movs.filter(m=>m.num_processo===num);
+  const hon=nv(p.vlr_honorario);const pctAlv=Math.min(100,aP.reduce((s,a)=>s+nv(a.perc_alvara),0));
+  document.getElementById('det-title').textContent='Processo '+p.num;
+  document.getElementById('det-body').innerHTML=`
+    <div class="fin-grid" style="margin-bottom:8px">
+      <div class="fin-card"><div class="fin-card-label">Honorários Confirmados</div><div class="fin-card-value green">${fmt(hon)}</div></div>
+      <div class="fin-card"><div class="fin-card-label">Com Direito de Recebimento</div><div class="fin-card-value blue">${fmt(dir)}</div></div>
+      <div class="fin-card"><div class="fin-card-label">Recebido</div><div class="fin-card-value orange">${fmt(rec)}</div></div>
+      <div class="fin-card"><div class="fin-card-label">Saldo</div><div class="fin-card-value ${sal>0?'red':'green'}">${fmt(sal)}</div></div>
+    </div>
+    <div class="fin-progress-wrap" style="margin-bottom:10px">
+      <div class="fin-progress-bar"><div class="fin-progress-fill" style="width:${pctAlv}%"></div></div>
+      <div class="fin-progress-label"><span>Alvarás recebidos</span><span>${pctAlv}%</span></div>
+    </div>
+    ${paPend>0?`<div style="background:var(--orange-ll);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--orange);font-weight:600">A Transferir ao PA: ${fmt(paPend)}</div>`:''}
+    ${nv(p.vlr_proposta)>0?`<div style="background:var(--blue-ll);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--blue)">Proposta do Perito: <strong>${fmt(p.vlr_proposta)}</strong> / Confirmado: <strong>${fmt(hon)}</strong> / Diferença: <strong style="color:${nv(hon)-nv(p.vlr_proposta)<0?'var(--green)':'var(--red-l)'}">${fmt(Math.abs(nv(hon)-nv(p.vlr_proposta)))}</strong></div>`:''}
+    ${[['Autor',p.autor],['Réu',p.reu],['Assunto',p.assunto],['Teses',p.teses||'—'],['Vara',p.vara],['Juiz',p.juiz],['Adv. Autor',p.adv_autor],['Adv. Réu',p.adv_reu],['Valor da Causa',fmt(p.vlr_causa)],['Gratuidade',isBool(p.gratuidade)?'Sim':'Não'],['Perito Assistente',p.perito_assistente||'—'],['Etapa Atual',p.etapa_atual],['Prazo',fmtD(p.data_limite_etapa_atual)],['Em Diligência',isBool(p.em_diligencia)?'Sim':'Não']].map(([k,v])=>`<div class="detail-row"><span class="detail-key">${k}:</span><span>${v||'—'}</span></div>`).join('')}
+    <div class="section-label">Histórico de Movimentações</div>
+    ${hist.length?hist.map(m=>{
+      const origIdx=movs.indexOf(m);
+      const isDil=m.tipo==='Diligência';
+      const podeExcluir=verificarPodeExcluirMov(m);
+      return`<div class="hist-item">
+        <div class="hist-head">
+          <span style="color:var(--faint)">${fmtD(m.data_registro)}</span>
+          <span class="badge ${isDil?'badge-orange':m.tipo==='Mudança de Etapa'?'badge-blue':'badge-gray'}">${m.tipo}</span>
+          ${m.etapa_nova?`<span style="font-weight:600;font-size:11px">${m.etapa_nova}</span>`:''}
+          <div class="hist-actions">
+            ${!isDil?`<button class="hist-edit-btn" onclick="fecharModal('modal-detalhe');abrirEditarMov(${origIdx})">✎ Editar</button>`:''}
+            ${podeExcluir?`<button class="hist-del-btn" onclick="fecharModal('modal-detalhe');confirmarExcluirMov(${origIdx})">🗑 Excluir</button>`:''}
+          </div>
+        </div>
+        ${m.observacao?`<div style="color:var(--muted)">${m.observacao}</div>`:''}
+        ${isBool(m.tem_prazo)?`<div style="color:var(--yellow-l);font-size:10px">⏰ ${fmtD(m.data_limite)} (${m.prazo_dias} dias úteis)</div>`:''}
+        ${isDil?`<div style="color:var(--orange);font-size:10px">Início: ${fmtD(m.data_inicio_diligencia)} ${m.data_fim_diligencia?'/ Fim: '+fmtD(m.data_fim_diligencia):'— Em aberto'} ${m.dias_diligencia?'('+m.dias_diligencia+' dias úteis)':''}</div>`:''}
+      </div>`;
+    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhuma movimentação.</div>'}`;
+  abrirModal('modal-detalhe');
+}
+
+// ─── SALVAR PROCESSO ─────────────────────────────────────────────────────────
+async function salvarProcesso(){
+  const num=document.getElementById('f-num').value.trim();
+  if(!num){toast('Informe o número do processo.','warn');return;}
+  // Verifica duplicidade
+  if(modoProc==='novo'&&processos.some(p=>p.num===num)){
+    document.getElementById('f-num-aviso').textContent='⚠ Já existe um processo cadastrado com este número.';
+    document.getElementById('f-num-aviso').style.display='block';
+    toast('Já existe um processo com este número.','warn');return;
+  }
+  document.getElementById('f-num-aviso').style.display='none';
+  const existente=modoProc==='editar'?processos.find(p=>p.num===num):null;
+  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:existente?existente.teses||'':'',vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:existente?existente.vlr_proposta||'':''};
+  const btn=document.getElementById('btn-salvar-proc');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    if(modoProc==='novo'){await sheetsAppend('processos!A:R',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
+    else{const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,obj)]);const idx=processos.findIndex(p=>p.num===num);if(idx>=0)processos[idx]={...obj};toast('✅ Processo atualizado!');}
+    fecharModal('modal-processo');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+
+// ─── SALVAR MOVIMENTAÇÃO ─────────────────────────────────────────────────────
+async function salvarMov(){
+  const num=document.getElementById('m-processo').value;if(!num){toast('Selecione o processo.','warn');return;}
+  const tipo=document.getElementById('m-tipo').value;
+  const btn=document.getElementById('btn-salvar-mov');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    // ENCERRAR DILIGÊNCIA
+    if(modoEncerrarDil&&editMovIdx>=0){
+      const fim=document.getElementById('m-dil-fim-enc').value;if(!fim){toast('Informe a data fim.','warn');btn.disabled=false;btn.textContent='💾 Salvar';return;}
+      const movDil=movs[editMovIdx];const dias=diasUteisEntre(movDil.data_inicio_diligencia,fim);
+      const upd={...movDil,data_fim_diligencia:fim,dias_diligencia:String(dias)};
+      const rn=await encontrarLinha('movimentacoes','id',movDil.id,HDR_M);if(rn<0)throw new Error('Movimentação não encontrada.');
+      await sheetsUpdate(`movimentacoes!A${rn}:M${rn}`,[objToRow(HDR_M,upd)]);movs[editMovIdx]={...upd};
+      const p=processos.find(x=>x.num===num);
+      if(p){let novaDataLim=p.data_limite_etapa_atual;if(p.data_limite_etapa_atual&&dias>0)novaDataLim=addDiasUteis(p.data_limite_etapa_atual,dias)||p.data_limite_etapa_atual;const updP={...p,em_diligencia:'FALSE',data_limite_etapa_atual:novaDataLim};const rnP=await encontrarLinha('processos','num',num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,updP)]);Object.assign(p,updP);}
+      toast('✅ Diligência encerrada!');fecharModal('modal-mov');renderTudo();return;
+    }
+    // MOVIMENTAÇÃO NORMAL
+    const etapaNova=tipo==='Mudança de Etapa'?document.getElementById('m-etapa').value:'';
+    const temPrazo=ETAPAS_COM_PRAZO.has(etapaNova)&&tipo==='Mudança de Etapa';
+    if(tipo==='Mudança de Etapa'&&!etapaNova){toast('Selecione a nova etapa.','warn');btn.disabled=false;btn.textContent='💾 Salvar';return;}
+    if(temPrazo&&!document.getElementById('m-data-int').value){toast('Informe a data da intimação.','warn');btn.disabled=false;btn.textContent='💾 Salvar';return;}
+    const obj={id:modoMov==='editar'?movs[editMovIdx].id:uid(),num_processo:num,tipo,etapa_nova:etapaNova,observacao:document.getElementById('m-obs').value,data_registro:modoMov==='editar'?movs[editMovIdx].data_registro:today(),tem_prazo:boolStr(temPrazo),data_intimacao:temPrazo?document.getElementById('m-data-int').value:'',prazo_dias:temPrazo?document.getElementById('m-prazo-dias').value:'',data_limite:temPrazo?document.getElementById('m-data-lim').value:'',data_inicio_diligencia:'',data_fim_diligencia:'',dias_diligencia:''};
+    if(modoMov==='novo'){await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,obj)]);movs.push(obj);}
+    else{const rn=await encontrarLinha('movimentacoes','id',obj.id,HDR_M);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`movimentacoes!A${rn}:M${rn}`,[objToRow(HDR_M,obj)]);movs[editMovIdx]={...obj};}
+    // Atualiza etapa no processo
+    if(tipo==='Mudança de Etapa'&&etapaNova&&modoMov==='novo'){
+      const p=processos.find(x=>x.num===num);
+      if(p){
+        let novasTeses=p.teses||'';if(etapaNova==='Laudo Pericial Apresentado'){const t=getTesesSelecionadas();if(t.length)novasTeses=t.join(', ');}
+        const novaDataLim=temPrazo?obj.data_limite:'';
+        const upd={...p,etapa_atual:etapaNova,data_limite_etapa_atual:novaDataLim,teses:novasTeses};
+        const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+      }
+    }
+    // Atualiza teses na edição de laudo
+    if(modoMov==='editar'&&etapaNova==='Laudo Pericial Apresentado'){
+      const p=processos.find(x=>x.num===num);if(p){const t=getTesesSelecionadas();const upd={...p,teses:t.join(', ')};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+    }
+    // Valor proposta
+    if(etapaNova==='Proposta de Honorários Apresentada'){
+      const vlrProposta=document.getElementById('m-vlr-proposta').value;
+      if(vlrProposta){const p=processos.find(x=>x.num===num);if(p){const upd={...p,vlr_proposta:vlrProposta};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+    }
+    await verificarEncerramento(num);
+    toast(modoMov==='novo'?'✅ Movimentação registrada!':'✅ Movimentação atualizada!');
+    fecharModal('modal-mov');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+
+async function verificarEncerramento(num){
+  const p=processos.find(x=>x.num===num);if(!p)return;if(p.etapa_atual!=='Sentença Proferida')return;
+  const rec=alvaras.filter(a=>a.num_processo===num).reduce((s,a)=>s+nv(a.vlr_recebido),0);const hon=nv(p.vlr_honorario);
+  if(hon>0&&rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
+}
+
+async function reverterParaEtapaAnterior(num){
+  const p=processos.find(x=>x.num===num);if(!p)return;
+  const movEtapas=movs.filter(m=>m.num_processo===num&&m.tipo==='Mudança de Etapa'&&m.etapa_nova).sort((a,b)=>a.data_registro>b.data_registro?-1:1);
+  const novaEtapa=movEtapas.length>0?movEtapas[0].etapa_nova:'Apresentar Proposta de Honorários';
+  const novoPrazo=movEtapas.length>0?movEtapas[0].data_limite||'':'';
+  const upd={...p,etapa_atual:novaEtapa,data_limite_etapa_atual:novoPrazo};
+  const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+}
+
+// ─── SALVAR ALVARÁ ────────────────────────────────────────────────────────────
+async function salvarAlvara(){
+  const num=document.getElementById('a-processo').value;if(!num){toast('Selecione o processo.','warn');return;}
+  const tr=document.getElementById('a-transf').checked;
+  const obj={id:modoAlv==='editar'?alvaras[editAlvIdx].id:uid(),num_processo:num,perc_alvara:document.getElementById('a-perc').value,vlr_recebido:document.getElementById('a-valor').value,data_recebimento:document.getElementById('a-data-rec').value,observacao:document.getElementById('a-obs').value,transferido_pa:boolStr(tr),data_transferencia:tr?document.getElementById('a-data-transf').value:'',perc_imposto:document.getElementById('a-perc-imp').value||'6',perc_repasse_pa:document.getElementById('a-perc-pa').value||'50'};
+  const btn=document.getElementById('btn-salvar-alv');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    if(modoAlv==='novo'){await sheetsAppend('alvaras!A:J',[objToRow(HDR_A,obj)]);alvaras.push(obj);toast('✅ Alvará registrado!');}
+    else{const rn=await encontrarLinha('alvaras','id',obj.id,HDR_A);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`alvaras!A${rn}:J${rn}`,[objToRow(HDR_A,obj)]);alvaras[editAlvIdx]={...obj};toast('✅ Alvará atualizado!');}
+    await verificarEncerramento(num);fecharModal('modal-alv');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+
+async function salvarPerito(){const nome=document.getElementById('p-nome').value.trim();if(!nome){toast('Informe o nome.','warn');return;}const obj={id:modoPerito==='editar'?peritos[editPeritoIdx].id:uid(),nome,email:document.getElementById('p-email').value,ativo:boolStr(document.getElementById('p-ativo').checked)};const btn=document.getElementById('btn-salvar-perito');btn.disabled=true;btn.textContent='⏳ Salvando...';try{if(modoPerito==='novo'){await sheetsAppend('peritos!A:D',[objToRow(HDR_PE,obj)]);peritos.push(obj);toast('✅ Perito cadastrado!');}else{const rn=await encontrarLinha('peritos','id',obj.id,HDR_PE);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`peritos!A${rn}:D${rn}`,[objToRow(HDR_PE,obj)]);peritos[editPeritoIdx]={...obj};toast('✅ Perito atualizado!');}fecharModal('modal-perito');renderTudo();}catch(e){toast('❌ '+e.message,'error');}finally{btn.disabled=false;btn.textContent='💾 Salvar';}}
+async function salvarTese(){const assunto=document.getElementById('t-assunto').value.trim();if(!assunto){toast('Informe o assunto.','warn');return;}const obj={id:modoTese==='editar'?teses[editTeseIdx].id:uid(),assunto,tese:document.getElementById('t-tese').value.trim(),ativo:boolStr(document.getElementById('t-ativo').checked)};const btn=document.getElementById('btn-salvar-tese');btn.disabled=true;btn.textContent='⏳ Salvando...';try{if(modoTese==='novo'){await sheetsAppend('assuntos_teses!A:D',[objToRow(HDR_T,obj)]);teses.push(obj);toast('✅ Tese cadastrada!');}else{const rn=await encontrarLinha('assuntos_teses','id',obj.id,HDR_T);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`assuntos_teses!A${rn}:D${rn}`,[objToRow(HDR_T,obj)]);teses[editTeseIdx]={...obj};toast('✅ Tese atualizada!');}fecharModal('modal-tese');renderTudo();}catch(e){toast('❌ '+e.message,'error');}finally{btn.disabled=false;btn.textContent='💾 Salvar';}}
+
+// ─── EXCLUSÕES ────────────────────────────────────────────────────────────────
+function fecharConfirm(){document.getElementById('confirm-del').classList.remove('open');}
+function abrirConfirm(msg,cb){document.getElementById('confirm-msg').textContent=msg;document.getElementById('confirm-del').classList.add('open');document.getElementById('btn-confirm-del').onclick=async()=>{fecharConfirm();await cb();};}
+
+function confirmarExcluirProcesso(num){
+  const p=processos.find(x=>x.num===num);const mP=movs.filter(m=>m.num_processo===num).length;const aP=alvaras.filter(a=>a.num_processo===num).length;
+  abrirConfirm(`Excluir processo ${num} — ${p?.autor}?\n\nSerão excluídos também:\n• ${mP} movimentação(ões)\n• ${aP} alvará(s)`,async()=>{
+    try{
+      const alvIdxs=alvaras.map((a,i)=>a.num_processo===num?i:-1).filter(i=>i>=0).reverse();
+      for(const i of alvIdxs){const rn=await encontrarLinha('alvaras','id',alvaras[i].id,HDR_A);if(rn>0)await deletarLinha('alvaras',rn);}
+      alvaras.splice(0,alvaras.length,...alvaras.filter(a=>a.num_processo!==num));
+      const movIdxs=movs.map((m,i)=>m.num_processo===num?i:-1).filter(i=>i>=0).reverse();
+      for(const i of movIdxs){const rn=await encontrarLinha('movimentacoes','id',movs[i].id,HDR_M);if(rn>0)await deletarLinha('movimentacoes',rn);}
+      movs.splice(0,movs.length,...movs.filter(m=>m.num_processo!==num));
+      const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await deletarLinha('processos',rn);
+      processos.splice(0,processos.length,...processos.filter(p=>p.num!==num));
+      renderTudo();toast('✅ Processo excluído!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+
+function confirmarExcluirMov(idx){
+  const m=movs[idx];
+  if(m.tipo==='Mudança de Etapa'&&!verificarPodeExcluirMov(m)){toast('⚠ Há etapas posteriores. Exclua as mais recentes primeiro.','warn');return;}
+  abrirConfirm(`Excluir movimentação "${m.tipo}"${m.etapa_nova?' — '+m.etapa_nova:''}?`,async()=>{
+    try{
+      const rn=await encontrarLinha('movimentacoes','id',m.id,HDR_M);if(rn<0)throw new Error('Não encontrado.');
+      await deletarLinha('movimentacoes',rn);movs.splice(idx,1);
+      if(m.tipo==='Mudança de Etapa')await reverterParaEtapaAnterior(m.num_processo);
+      if(m.tipo==='Diligência'){
+        const p=processos.find(x=>x.num===m.num_processo);
+        if(p){const upd={...p,em_diligencia:'FALSE'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+      }
+      const p=processos.find(x=>x.num===m.num_processo);
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      renderTudo();toast('✅ Movimentação excluída!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+
+function confirmarExcluirAlvara(idx){
+  const a=alvaras[idx];
+  abrirConfirm(`Excluir alvará ${a.perc_alvara}% — ${fmt(a.vlr_recebido)} — ${a.num_processo}?`,async()=>{
+    try{
+      const rn=await encontrarLinha('alvaras','id',a.id,HDR_A);if(rn<0)throw new Error('Não encontrado.');
+      await deletarLinha('alvaras',rn);alvaras.splice(idx,1);
+      const p=processos.find(x=>x.num===a.num_processo);
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(x=>x.num_processo===p.num).reduce((s,x)=>s+nv(x.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('⚠ Processo reaberto: saldo pendente.');}}
+      renderTudo();toast('✅ Alvará excluído!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+
+function confirmarExcluirPerito(idx){const p=peritos[idx];abrirConfirm(`Excluir perito "${p.nome}"?`,async()=>{try{const rn=await encontrarLinha('peritos','id',p.id,HDR_PE);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('peritos',rn);peritos.splice(idx,1);renderTudo();toast('✅ Perito excluído!');}catch(e){toast('❌ '+e.message,'error');}});}
+function confirmarExcluirTese(idx){const t=teses[idx];abrirConfirm(`Excluir tese "${t.tese}" (${t.assunto})?`,async()=>{try{const rn=await encontrarLinha('assuntos_teses','id',t.id,HDR_T);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('assuntos_teses',rn);teses.splice(idx,1);renderTudo();toast('✅ Tese excluída!');}catch(e){toast('❌ '+e.message,'error');}});}
+</script>
+</body>
+</html>
