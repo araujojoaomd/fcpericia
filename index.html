@@ -146,6 +146,22 @@ tbody tr:nth-child(even){background:#fafafa}
 .ms-actions{display:flex;gap:12px;padding:4px 9px 6px;border-bottom:1px solid var(--gray2);margin-bottom:4px;position:sticky;top:-4px;background:#fff}
 .ms-actions a{font-size:10px;color:var(--blue);cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .ms-actions a:hover{text-decoration:underline}
+/* RELATÓRIOS */
+.rel-header{margin-bottom:16px}
+.rel-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text)}
+.rel-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.rel-grupo{margin-bottom:18px;border:1px solid var(--gray3);border-radius:10px;overflow:hidden}
+.rel-grupo-head{background:var(--gray2);padding:8px 12px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rel-grupo-head span{font-weight:600;color:var(--muted);font-size:11px}
+.rel-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.rel-tbl th,.rel-tbl td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--gray2);vertical-align:top}
+.rel-tbl th{background:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700}
+.rel-tbl .num{text-align:right;white-space:nowrap}
+.rel-tbl tfoot td{background:var(--gray);font-weight:700;border-top:2px solid var(--gray3)}
+.rel-tbl tr.aberto{background:#fff7ed}
+.rel-total{margin-top:6px;padding:12px 16px;background:var(--blue-ll);border-radius:10px;font-size:14px;font-weight:800;color:var(--blue);text-align:right}
+.rel-badge-ok{color:var(--green);font-weight:700}
+.rel-badge-pend{color:var(--orange);font-weight:700}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
@@ -247,6 +263,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
+    <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Configurações</button>
     <div class="sidebar-footer">
       <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
@@ -379,6 +396,20 @@ tbody tr:nth-child(even){background:#fafafa}
           <table><thead><tr><th>Data</th><th>Processo</th><th>Autor</th><th>% Alv.</th><th>Recebido</th><th>Líquido</th><th>Repasse PA</th><th>Transf. PA</th><th>Ações</th></tr></thead>
           <tbody id="tbl-alvaras"></tbody></table>
         </div>
+      </div>
+
+      <div id="tab-relatorios" class="tab-content" style="display:none">
+        <div class="page-title">Relatórios</div>
+        <p class="page-sub">Cobrança às varas e prestação de contas com o perito assistente</p>
+        <div class="filters">
+          <select class="filter-select" id="rel-tipo" onchange="onChangeRelTipo()">
+            <option value="varas">Cobrança às Varas (valores a receber)</option>
+            <option value="peritos">Prestação de Contas — Perito Assistente</option>
+          </select>
+          <select class="filter-select" id="rel-filtro" onchange="renderRelatorios()"></select>
+          <button class="primary-btn btn-blue" onclick="imprimirRelatorio()">🖨 Imprimir / PDF</button>
+        </div>
+        <div id="rel-conteudo"></div>
       </div>
 
       <div id="tab-config" class="tab-content" style="display:none">
@@ -749,7 +780,7 @@ async function carregarDados(){
 function aplicarFiltroGlobal(){perfilAtual=document.getElementById('perfilSelect').value;renderTudo();}
 function processosFiltradosPorPerfil(){return perfilAtual?processos.filter(p=>p.perito_assistente===perfilAtual):processos;}
 function switchTab(tab){document.querySelectorAll('.tab-content').forEach(el=>el.style.display='none');document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));document.getElementById('tab-'+tab).style.display='block';document.querySelector(`[data-tab="${tab}"]`).classList.add('active');}
-function renderTudo(){renderDashboard();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();}
+function renderTudo(){renderDashboard();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();}
 function popularPerfilSelect(){const sel=document.getElementById('perfilSelect');const val=sel.value;sel.innerHTML='<option value="">Coordenador Geral</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');sel.value=val;}
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -1112,6 +1143,116 @@ function renderAlvaras(){
 function renderConfig(){
   document.getElementById('tbl-peritos').innerHTML=peritos.length?peritos.map((p,i)=>`<tr><td style="font-weight:600">${p.nome}</td><td style="color:var(--muted)">${p.email||'—'}</td><td>${isBool(p.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalPerito('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirPerito(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhum perito cadastrado.</td></tr>';
   document.getElementById('tbl-config').innerHTML=teses.length?teses.map((t,i)=>`<tr><td><span class="badge badge-purple">${t.assunto}</span></td><td>${t.tese||'—'}</td><td>${isBool(t.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalTese('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirTese(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhuma tese cadastrada.</td></tr>';
+}
+
+// ─── RELATÓRIOS ───────────────────────────────────────────────────────────────
+function popularRelFiltro(){
+  const tipo=(document.getElementById('rel-tipo')||{value:'varas'}).value;
+  const sel=document.getElementById('rel-filtro');if(!sel)return;
+  const val=sel.value;const base=processosFiltradosPorPerfil();
+  let items,label;
+  if(tipo==='varas'){items=[...new Set(base.map(p=>p.vara).filter(Boolean))].sort();label='Todas as varas';}
+  else{items=[...new Set(base.map(p=>p.perito_assistente).filter(Boolean))].sort();label='Todos os peritos';}
+  sel.innerHTML=`<option value="">${label}</option>`+items.map(v=>`<option value="${v}">${v}</option>`).join('');
+  sel.value=val;
+}
+function onChangeRelTipo(){const sel=document.getElementById('rel-filtro');if(sel)sel.value='';popularRelFiltro();renderRelatorios();}
+function renderRelatorios(){
+  const cont=document.getElementById('rel-conteudo');if(!cont)return;
+  const tipo=(document.getElementById('rel-tipo')||{value:'varas'}).value;
+  const filtro=(document.getElementById('rel-filtro')||{value:''}).value;
+  cont.innerHTML=tipo==='varas'?relVaras(filtro):relPeritos(filtro);
+}
+function relCabecalho(titulo){
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const perfil=perfilAtual?` — Perito: ${perfilAtual}`:'';
+  return `<div class="rel-header"><div class="rel-title">${titulo}</div><div class="rel-sub">FC Perícia${perfil} • Emitido em ${hoje}</div></div>`;
+}
+function relVaras(filtroVara){
+  const base=processosFiltradosPorPerfil();
+  let dados=base.map(p=>{
+    const aP=alvaras.filter(a=>a.num_processo===p.num);
+    const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);
+    const dir=calcDireito(p.vlr_honorario,p.etapa_atual);
+    const saldo=Math.max(0,dir-rec);
+    const pctAlv=Math.min(100,aP.reduce((s,a)=>s+nv(a.perc_alvara),0));
+    return{p,rec,dir,saldo,pctAlv};
+  }).filter(d=>d.saldo>0);
+  if(filtroVara)dados=dados.filter(d=>d.p.vara===filtroVara);
+  let html=relCabecalho('Cobrança às Varas — Valores a Receber');
+  if(!dados.length)return html+'<p style="color:var(--faint);padding:20px">Nenhum processo com saldo a receber.</p>';
+  const grupos={};
+  dados.forEach(d=>{const k=d.p.vara||'(Sem vara)';(grupos[k]=grupos[k]||[]).push(d);});
+  let totalGeral=0;
+  Object.keys(grupos).sort().forEach(vara=>{
+    const g=grupos[vara].sort((a,b)=>b.saldo-a.saldo);
+    const sub=g.reduce((s,d)=>s+d.saldo,0);totalGeral+=sub;
+    html+=`<div class="rel-grupo"><div class="rel-grupo-head"><span style="color:var(--text);font-size:12px">⚖ ${vara}</span><span>${g.length} processo(s) • Saldo: ${fmt(sub)}</span></div>
+    <table class="rel-tbl"><thead><tr><th>Processo</th><th>Autor × Réu</th><th>Juiz</th><th>Etapa</th><th>Nomeação</th><th>Prazo</th><th class="num">Honorários</th><th class="num">Direito</th><th class="num">Recebido</th><th class="num">% Alv.</th><th class="num">Saldo a receber</th></tr></thead><tbody>`;
+    g.forEach(d=>{
+      const p=d.p;const st=statusPrazo(p.data_limite_etapa_atual);
+      const prazoTxt=p.data_limite_etapa_atual?`${fmtD(p.data_limite_etapa_atual)}${st==='vencido'?' ⚠':st==='urgente'?' •':''}`:'—';
+      html+=`<tr><td class="mono">${p.num}</td><td>${p.autor}<div style="color:var(--muted);font-size:10px">× ${p.reu||'—'}</div></td><td>${p.juiz||'—'}</td><td>${p.etapa_atual||'—'}</td><td>${fmtD(p.data_nomeacao)}</td><td>${prazoTxt}</td><td class="num">${fmt(p.vlr_honorario)}</td><td class="num">${fmt(d.dir)}</td><td class="num">${fmt(d.rec)}</td><td class="num">${d.pctAlv}%</td><td class="num" style="font-weight:700;color:var(--red)">${fmt(d.saldo)}</td></tr>`;
+    });
+    html+=`</tbody><tfoot><tr><td colspan="10" class="num">Subtotal da vara</td><td class="num">${fmt(sub)}</td></tr></tfoot></table></div>`;
+  });
+  html+=`<div class="rel-total">Total geral a receber: ${fmt(totalGeral)}</div>`;
+  return html;
+}
+function relPeritos(filtroPerito){
+  const base=processosFiltradosPorPerfil();
+  const procByNum={};base.forEach(p=>{if(p.perito_assistente)procByNum[p.num]=p;});
+  let regs=alvaras.filter(a=>procByNum[a.num_processo]).map(a=>{
+    const p=procByNum[a.num_processo];
+    const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;
+    const bruto=nv(a.vlr_recebido);const liq=bruto*(1-imp/100);const repasse=liq*(rep/100);
+    return{a,p,perito:p.perito_assistente,imp,rep,bruto,liq,repasse,transf:isBool(a.transferido_pa)};
+  });
+  if(filtroPerito)regs=regs.filter(r=>r.perito===filtroPerito);
+  let html=relCabecalho('Prestação de Contas — Perito Assistente');
+  if(!regs.length)return html+'<p style="color:var(--faint);padding:20px">Nenhum recebimento registrado para o(s) perito(s).</p>';
+  const grupos={};
+  regs.forEach(r=>{(grupos[r.perito]=grupos[r.perito]||[]).push(r);});
+  let gAberto=0;
+  Object.keys(grupos).sort().forEach(perito=>{
+    const g=grupos[perito].sort((a,b)=>String(a.a.data_recebimento||'').localeCompare(String(b.a.data_recebimento||'')));
+    const tRec=g.reduce((s,r)=>s+r.bruto,0);
+    const tLiq=g.reduce((s,r)=>s+r.liq,0);
+    const tRep=g.reduce((s,r)=>s+r.repasse,0);
+    const tTransf=g.filter(r=>r.transf).reduce((s,r)=>s+r.repasse,0);
+    const tAberto=g.filter(r=>!r.transf).reduce((s,r)=>s+r.repasse,0);gAberto+=tAberto;
+    html+=`<div class="rel-grupo"><div class="rel-grupo-head"><span style="color:var(--text);font-size:12px">👤 ${perito}</span><span>${g.length} recebimento(s) • A transferir: ${fmt(tAberto)}</span></div>
+    <table class="rel-tbl"><thead><tr><th>Processo / Autor</th><th>Recebimento</th><th class="num">Recebido (bruto)</th><th class="num">Imp.</th><th class="num">Líquido</th><th class="num">% PA</th><th class="num">Repasse PA</th><th>Transferido?</th></tr></thead><tbody>`;
+    g.forEach(r=>{
+      html+=`<tr class="${r.transf?'':'aberto'}"><td class="mono">${r.p.num}<div style="color:var(--muted);font-size:10px">${r.p.autor}</div></td><td>${fmtD(r.a.data_recebimento)}</td><td class="num">${fmt(r.bruto)}</td><td class="num">${r.imp}%</td><td class="num">${fmt(r.liq)}</td><td class="num">${r.rep}%</td><td class="num" style="font-weight:700">${fmt(r.repasse)}</td><td>${r.transf?`<span class="rel-badge-ok">✓ ${fmtD(r.a.data_transferencia)}</span>`:'<span class="rel-badge-pend">Pendente</span>'}</td></tr>`;
+    });
+    html+=`</tbody><tfoot>
+      <tr><td colspan="2" class="num">Total recebido (bruto)</td><td class="num">${fmt(tRec)}</td><td colspan="2" class="num">Total líquido</td><td class="num" colspan="3">${fmt(tLiq)}</td></tr>
+      <tr><td colspan="2" class="num">Repasse devido ao PA</td><td class="num">${fmt(tRep)}</td><td colspan="2" class="num">Já transferido</td><td class="num">${fmt(tTransf)}</td><td colspan="2" class="num" style="color:var(--orange)">Em aberto: ${fmt(tAberto)}</td></tr>
+    </tfoot></table></div>`;
+  });
+  html+=`<div class="rel-total">Total em aberto a transferir aos peritos: ${fmt(gAberto)}</div>`;
+  return html;
+}
+function imprimirRelatorio(){
+  const cont=document.getElementById('rel-conteudo');if(!cont)return;
+  const css=`body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;margin:24px}
+    .rel-header{margin-bottom:16px}.rel-title{font-size:20px;font-weight:800}.rel-sub{font-size:12px;color:#64748b;margin-top:2px}
+    .rel-grupo{margin-bottom:18px;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;page-break-inside:avoid}
+    .rel-grupo-head{background:#f1f5f9;padding:8px 12px;font-size:13px;font-weight:700;display:flex;justify-content:space-between}
+    .rel-grupo-head span:last-child{font-weight:600;color:#64748b;font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th,td{padding:6px 8px;text-align:left;border-bottom:1px solid #e2e8f0;vertical-align:top}
+    th{background:#fff;font-size:10px;text-transform:uppercase;color:#64748b}
+    .num{text-align:right;white-space:nowrap}
+    tfoot td{background:#f8fafc;font-weight:700;border-top:2px solid #cbd5e1}
+    tr.aberto{background:#fff7ed}
+    .rel-total{margin-top:6px;padding:12px 16px;background:#dbeafe;border-radius:8px;font-size:15px;font-weight:800;color:#1d4ed8;text-align:right}
+    .rel-badge-ok{color:#059669;font-weight:700}.rel-badge-pend{color:#ea580c;font-weight:700}`;
+  const w=window.open('','_blank');
+  if(!w){toast('Permita pop-ups para imprimir o relatório.','warn');return;}
+  w.document.write(`<html><head><meta charset="utf-8"><title>Relatório FC Perícia</title><style>${css}</style></head><body>${cont.innerHTML}</body></html>`);
+  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
 
 // ─── FILTROS ──────────────────────────────────────────────────────────────────
