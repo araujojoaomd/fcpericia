@@ -592,8 +592,9 @@ tbody tr:nth-child(even){background:#fafafa}
   <div class="modal-box" style="max-width:480px">
     <div class="modal-head"><div class="modal-title">Nova Tarefa</div><button class="modal-close" onclick="fecharModal('modal-tarefa')">✕</button></div>
     <div class="form-grid">
-      <div class="form-field"><label class="field-label">Processo *</label><select class="field-select" id="tf-processo"><option value="">Selecione...</option></select></div>
+      <div class="form-field"><label class="field-label">Processo *</label><select class="field-select" id="tf-processo" onchange="onChangeTarefaProc()"><option value="">Selecione...</option></select></div>
       <div class="form-field"><label class="field-label">Descrição *</label><input class="field-input" id="tf-descricao" placeholder="O que precisa ser feito"></div>
+      <div class="form-field half"><label class="field-label">Responsável</label><select class="field-select" id="tf-responsavel"></select></div>
       <div class="form-field half"><label class="field-label">Prazo (opcional)</label><input class="field-input" id="tf-prazo" type="date"></div>
     </div>
     <div class="modal-footer">
@@ -642,7 +643,7 @@ const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro
 const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento","observacao","transferido_pa","data_transferencia","perc_imposto","perc_repasse_pa"];
 const HDR_T=["id","assunto","tese","ativo"];
 const HDR_PE=["id","nome","email","ativo"];
-const HDR_TAREFAS=["id","num_processo","descricao","prazo","feita","data_conclusao","data_criacao"];
+const HDR_TAREFAS=["id","num_processo","descricao","prazo","feita","data_conclusao","data_criacao","responsavel"];
 const ETAPAS=["Apresentar Proposta de Honorários","Proposta de Honorários Apresentada","Apresentar Defesa da Proposta","Defesa da Proposta Apresentada","Apresentar Laudo Pericial","Laudo Pericial Apresentado","Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado","Sentença Proferida","Encerrado"];
 const ETAPAS_COM_PRAZO=new Set(["Apresentar Proposta de Honorários","Apresentar Defesa da Proposta","Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
@@ -807,7 +808,7 @@ async function garantirAbaTarefas(){
   const d=await r.json();
   if(!(d.sheets||[]).some(s=>s.properties.title==='tarefas')){
     await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'tarefas'}}}]})});
-    await sheetsUpdate('tarefas!A1:G1',[HDR_TAREFAS]);
+    await sheetsUpdate('tarefas!A1:H1',[HDR_TAREFAS]);
   }
 }
 async function carregarTarefas(){
@@ -843,7 +844,7 @@ function renderTarefas(){
   const sub=document.getElementById('tarefas-sub');
   if(sub)sub.innerHTML=`${tarefas.length} tarefa(s) do fluxo • <span style="color:var(--red);font-weight:700">${venc} vencida(s)</span> • <span style="color:var(--yellow);font-weight:700">${urg} urgente(s)</span>`;
   if(!tarefas.length){cont.innerHTML='<div style="text-align:center;padding:36px;color:var(--faint)">Nenhuma tarefa pendente no fluxo. 🎉</div>';return;}
-  cont.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Processo</th><th>Autor</th><th>Tribunal / Vara</th><th>Tarefa (etapa de ação)</th><th>Prazo</th><th>Ações</th></tr></thead><tbody>'+
+  cont.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Processo</th><th>Autor</th><th>Tribunal / Vara</th><th>Tarefa (etapa de ação)</th><th>Responsável</th><th>Prazo</th><th>Ações</th></tr></thead><tbody>'+
     tarefas.map(p=>{
       const st=statusPrazo(p.data_limite_etapa_atual);const dil=isBool(p.em_diligencia);
       const rowStyle=dil?'background:#fff7ed':st==='vencido'?'background:#fef2f2':st==='urgente'?'background:#fffbeb':'';
@@ -852,6 +853,7 @@ function renderTarefas(){
         <td>${p.autor}</td>
         <td style="font-size:11px">${p.tribunal?p.tribunal+' / ':''}${p.vara||'—'}</td>
         <td>${etapaBadge(p.etapa_atual)}${dil?'<div class="diligencia-badge" style="margin-top:3px">🔄 Em diligência (pausada)</div>':''}</td>
+        <td style="font-size:11px">👤 ${p.perito_assistente||'—'}</td>
         <td>${p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):'<span style="color:var(--faint);font-size:11px">sem prazo</span>'}</td>
         <td style="white-space:nowrap"><button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button></td>
       </tr>`;
@@ -870,22 +872,35 @@ function renderTarefasManuais(){
     const st=t.prazo?statusPrazo(t.prazo):'';
     const prazoTxt=t.prazo?` • Prazo: ${fmtD(t.prazo)}${st==='vencido'?' ⚠':st==='urgente'?' •':''}`:'';
     const concTxt=feita&&t.data_conclusao?` • Concluída em ${fmtD(t.data_conclusao)}`:'';
+    const resp=t.responsavel||(p?p.perito_assistente:'')||'';
     return`<div class="tarefa-item ${feita?'feita':''}">
       <input type="checkbox" ${feita?'checked':''} onchange="toggleTarefaFeita('${t.id}')" title="Marcar como feita">
       <div style="flex:1">
         <div class="tarefa-desc">${t.descricao}</div>
-        <div class="tarefa-meta"><span onclick="verDetalhe('${t.num_processo}')" style="color:var(--blue);cursor:pointer">${t.num_processo}${p?' — '+p.autor:''}</span>${prazoTxt}${concTxt}</div>
+        <div class="tarefa-meta"><span onclick="verDetalhe('${t.num_processo}')" style="color:var(--blue);cursor:pointer">${t.num_processo}${p?' — '+p.autor:''}</span>${resp?` • 👤 ${resp}`:''}${prazoTxt}${concTxt}</div>
       </div>
       <button class="hist-del-btn" onclick="confirmarExcluirTarefa('${t.id}')" title="Excluir">🗑</button>
     </div>`;
   };
   cont.innerHTML=pend.map(linha).join('')+(feitas.length?`<div style="font-size:10px;color:var(--muted);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.05em">Concluídas (${feitas.length})</div>`+feitas.map(linha).join(''):'');
 }
+function popularResponsavel(selPA){
+  const sel=document.getElementById('tf-responsavel');if(!sel)return;
+  const ativos=peritos.filter(p=>isBool(p.ativo)).map(p=>p.nome);
+  const nomes=[...new Set([selPA,...ativos].filter(Boolean))];
+  sel.innerHTML='<option value="">— Sem responsável —</option>'+nomes.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.value=selPA||'';
+}
+function onChangeTarefaProc(){
+  const p=processos.find(x=>x.num===document.getElementById('tf-processo').value);
+  popularResponsavel(p?p.perito_assistente:'');
+}
 function abrirModalTarefa(numProc){
   const sel=document.getElementById('tf-processo');
   sel.innerHTML='<option value="">Selecione...</option>'+processos.slice().sort((a,b)=>(a.autor||'').localeCompare(b.autor||'','pt-BR')).map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
   sel.value=numProc||'';
   document.getElementById('tf-descricao').value='';document.getElementById('tf-prazo').value='';
+  onChangeTarefaProc();
   abrirModal('modal-tarefa');
 }
 async function salvarTarefa(){
@@ -893,11 +908,11 @@ async function salvarTarefa(){
   const desc=document.getElementById('tf-descricao').value.trim();
   if(!num){toast('Selecione o processo.','warn');return;}
   if(!desc){toast('Informe a descrição.','warn');return;}
-  const obj={id:uid(),num_processo:num,descricao:desc,prazo:document.getElementById('tf-prazo').value,feita:'FALSE',data_conclusao:'',data_criacao:today()};
+  const obj={id:uid(),num_processo:num,descricao:desc,prazo:document.getElementById('tf-prazo').value,feita:'FALSE',data_conclusao:'',data_criacao:today(),responsavel:document.getElementById('tf-responsavel').value};
   const btn=document.getElementById('btn-salvar-tarefa');btn.disabled=true;btn.textContent='⏳ Salvando...';
   try{
     await garantirAbaTarefas();
-    await sheetsAppend('tarefas!A:G',[objToRow(HDR_TAREFAS,obj)]);
+    await sheetsAppend('tarefas!A:H',[objToRow(HDR_TAREFAS,obj)]);
     tarefasManuais.push(obj);fecharModal('modal-tarefa');renderTarefas();toast('✅ Tarefa adicionada!');
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Salvar';}
@@ -908,7 +923,7 @@ async function toggleTarefaFeita(id){
   const upd={...t,feita:nova?'TRUE':'FALSE',data_conclusao:nova?today():''};
   try{
     const rn=await encontrarLinha('tarefas','id',id,HDR_TAREFAS);if(rn<0)throw new Error('Tarefa não encontrada.');
-    await sheetsUpdate(`tarefas!A${rn}:G${rn}`,[objToRow(HDR_TAREFAS,upd)]);
+    await sheetsUpdate(`tarefas!A${rn}:H${rn}`,[objToRow(HDR_TAREFAS,upd)]);
     Object.assign(t,upd);renderTarefas();
   }catch(e){toast('❌ '+e.message,'error');renderTarefas();}
 }
@@ -1113,6 +1128,7 @@ function renderProcessos(){
   if(!fil.length){lista.innerHTML='<div style="text-align:center;padding:36px;color:var(--faint)">Nenhum processo encontrado.</div>';return;}
   lista.innerHTML=fil.map(p=>{
     const mP=movs.filter(m=>m.num_processo===p.num);
+    const tPend=tarefasManuais.filter(t=>t.num_processo===p.num&&!isBool(t.feita)).length;
     const aP=alvaras.filter(a=>a.num_processo===p.num);
     const rec=aP.reduce((s,a)=>s+nv(a.vlr_recebido),0);
     const dir=calcDireito(p.vlr_honorario,p.etapa_atual);
@@ -1145,6 +1161,7 @@ function renderProcessos(){
             ${dilAtiva?'<div class="diligencia-badge">🔄 Em Diligência</div>':''}
             ${!dilAtiva&&p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):''}
             ${encerrado?'<span class="badge badge-green">✓ Encerrado</span>':''}
+            ${tPend?`<span class="badge badge-orange" title="Tarefas manuais pendentes">📌 ${tPend} tarefa(s)</span>`:''}
           </div>
           <div class="proc-autor">${p.autor}</div>
           <div class="proc-reu">✕ ${p.reu}</div>
@@ -1169,6 +1186,7 @@ function renderProcessos(){
         <button class="act-btn act-blue" onclick="abrirModalProcesso('editar','${p.num}')">Editar</button>
         <button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button>
         <button class="act-btn act-yellow" onclick="abrirModalAlvara('${p.num}')">+ Alvará</button>
+        <button class="act-btn act-gray" onclick="abrirModalTarefa('${p.num}')">+ Tarefa</button>
         ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
         ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
         ${!encerrado?`<button class="act-btn act-red" onclick="confirmarExcluirProcesso('${p.num}')">Excluir</button>`:''}
