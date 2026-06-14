@@ -260,6 +260,7 @@ tbody tr:nth-child(even){background:#fafafa}
       <select class="perfil-select" id="perfilSelect" onchange="aplicarFiltroGlobal()"><option value="">Coordenador Geral</option></select>
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
+    <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
@@ -275,6 +276,12 @@ tbody tr:nth-child(even){background:#fafafa}
   <div id="main">
     <div id="spinner" class="spinner-wrap"><div class="spinner"></div><div class="spinner-msg" id="spinMsg">Carregando...</div></div>
     <div id="content" style="display:none">
+
+      <div id="tab-tarefas" class="tab-content" style="display:none">
+        <div class="page-title">Tarefas Pendentes</div>
+        <p class="page-sub" id="tarefas-sub">Ações do fluxo</p>
+        <div id="tarefas-lista"></div>
+      </div>
 
       <div id="tab-dashboard" class="tab-content">
         <div class="page-title">Dashboard</div>
@@ -782,7 +789,31 @@ async function carregarDados(){
 function aplicarFiltroGlobal(){perfilAtual=document.getElementById('perfilSelect').value;renderTudo();}
 function processosFiltradosPorPerfil(){return perfilAtual?processos.filter(p=>p.perito_assistente===perfilAtual):processos;}
 function switchTab(tab){document.querySelectorAll('.tab-content').forEach(el=>el.style.display='none');document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));document.getElementById('tab-'+tab).style.display='block';document.querySelector(`[data-tab="${tab}"]`).classList.add('active');}
-function renderTudo(){renderDashboard();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();}
+function renderTudo(){renderDashboard();renderTarefas();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();}
+// ─── TAREFAS PENDENTES ────────────────────────────────────────────────────────
+function renderTarefas(){
+  const cont=document.getElementById('tarefas-lista');if(!cont)return;
+  const base=processosFiltradosPorPerfil();
+  let tarefas=ordenarPorPrazo(base.filter(p=>String(p.etapa_atual||'').startsWith('Apresentar')));
+  const venc=tarefas.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido').length;
+  const urg=tarefas.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente').length;
+  const sub=document.getElementById('tarefas-sub');
+  if(sub)sub.innerHTML=`${tarefas.length} tarefa(s) do fluxo • <span style="color:var(--red);font-weight:700">${venc} vencida(s)</span> • <span style="color:var(--yellow);font-weight:700">${urg} urgente(s)</span>`;
+  if(!tarefas.length){cont.innerHTML='<div style="text-align:center;padding:36px;color:var(--faint)">Nenhuma tarefa pendente no fluxo. 🎉</div>';return;}
+  cont.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Processo</th><th>Autor</th><th>Tribunal / Vara</th><th>Tarefa (etapa de ação)</th><th>Prazo</th><th>Ações</th></tr></thead><tbody>'+
+    tarefas.map(p=>{
+      const st=statusPrazo(p.data_limite_etapa_atual);const dil=isBool(p.em_diligencia);
+      const rowStyle=dil?'background:#fff7ed':st==='vencido'?'background:#fef2f2':st==='urgente'?'background:#fffbeb':'';
+      return`<tr style="${rowStyle}">
+        <td class="mono"><span onclick="verDetalhe('${p.num}')" style="color:var(--blue);text-decoration:underline;cursor:pointer" title="Ver detalhes">${p.num}</span></td>
+        <td>${p.autor}</td>
+        <td style="font-size:11px">${p.tribunal?p.tribunal+' / ':''}${p.vara||'—'}</td>
+        <td>${etapaBadge(p.etapa_atual)}${dil?'<div class="diligencia-badge" style="margin-top:3px">🔄 Em diligência (pausada)</div>':''}</td>
+        <td>${p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):'<span style="color:var(--faint);font-size:11px">sem prazo</span>'}</td>
+        <td style="white-space:nowrap"><button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button></td>
+      </tr>`;
+    }).join('')+'</tbody></table></div>';
+}
 function popularPerfilSelect(){const sel=document.getElementById('perfilSelect');const val=sel.value;sel.innerHTML='<option value="">Coordenador Geral</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');sel.value=val;}
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
