@@ -162,6 +162,13 @@ tbody tr:nth-child(even){background:#fafafa}
 .rel-total{margin-top:6px;padding:12px 16px;background:var(--blue-ll);border-radius:10px;font-size:14px;font-weight:800;color:var(--blue);text-align:right}
 .rel-badge-ok{color:var(--green);font-weight:700}
 .rel-badge-pend{color:var(--orange);font-weight:700}
+/* TAREFAS MANUAIS */
+.tarefa-item{display:flex;align-items:flex-start;gap:10px;background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:6px}
+.tarefa-item.feita{opacity:.62;background:var(--gray2)}
+.tarefa-item.feita .tarefa-desc{text-decoration:line-through}
+.tarefa-item input[type=checkbox]{margin-top:1px;cursor:pointer;width:17px;height:17px;flex-shrink:0;accent-color:var(--green)}
+.tarefa-desc{font-size:12px;font-weight:600;color:var(--text)}
+.tarefa-meta{font-size:10px;color:var(--muted);margin-top:2px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:16px;padding:26px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:modalIn .2s ease}
@@ -260,8 +267,8 @@ tbody tr:nth-child(even){background:#fafafa}
       <select class="perfil-select" id="perfilSelect" onchange="aplicarFiltroGlobal()"><option value="">Coordenador Geral</option></select>
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
-    <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
+    <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
@@ -278,9 +285,14 @@ tbody tr:nth-child(even){background:#fafafa}
     <div id="content" style="display:none">
 
       <div id="tab-tarefas" class="tab-content" style="display:none">
-        <div class="page-title">Tarefas Pendentes</div>
-        <p class="page-sub" id="tarefas-sub">Ações do fluxo</p>
+        <div class="topbar">
+          <div><div class="page-title">Tarefas Pendentes</div><p class="page-sub" id="tarefas-sub" style="margin:2px 0 0">Ações do fluxo</p></div>
+          <button class="primary-btn btn-green" onclick="abrirModalTarefa('')">+ Adicionar tarefa</button>
+        </div>
+        <div class="section-label">Ações do fluxo (automáticas)</div>
         <div id="tarefas-lista"></div>
+        <div class="section-label" style="margin-top:22px">Tarefas manuais</div>
+        <div id="tarefas-manuais"></div>
       </div>
 
       <div id="tab-dashboard" class="tab-content">
@@ -575,6 +587,22 @@ tbody tr:nth-child(even){background:#fafafa}
   </div>
 </div>
 
+<!-- MODAL TAREFA -->
+<div class="modal-overlay" id="modal-tarefa">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><div class="modal-title">Nova Tarefa</div><button class="modal-close" onclick="fecharModal('modal-tarefa')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo *</label><select class="field-select" id="tf-processo"><option value="">Selecione...</option></select></div>
+      <div class="form-field"><label class="field-label">Descrição *</label><input class="field-input" id="tf-descricao" placeholder="O que precisa ser feito"></div>
+      <div class="form-field half"><label class="field-label">Prazo (opcional)</label><input class="field-input" id="tf-prazo" type="date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-tarefa')">Cancelar</button>
+      <button class="modal-save btn-green" id="btn-salvar-tarefa" onclick="salvarTarefa()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM -->
 <div class="confirm-overlay" id="confirm-del">
   <div class="confirm-box">
@@ -614,12 +642,13 @@ const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro
 const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento","observacao","transferido_pa","data_transferencia","perc_imposto","perc_repasse_pa"];
 const HDR_T=["id","assunto","tese","ativo"];
 const HDR_PE=["id","nome","email","ativo"];
+const HDR_TAREFAS=["id","num_processo","descricao","prazo","feita","data_conclusao","data_criacao"];
 const ETAPAS=["Apresentar Proposta de Honorários","Proposta de Honorários Apresentada","Apresentar Defesa da Proposta","Defesa da Proposta Apresentada","Apresentar Laudo Pericial","Laudo Pericial Apresentado","Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado","Sentença Proferida","Encerrado"];
 const ETAPAS_COM_PRAZO=new Set(["Apresentar Proposta de Honorários","Apresentar Defesa da Proposta","Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
 
-let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[];
+let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[];
 let modoProc='novo';
 let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
 let modoAlv='novo',editAlvIdx=-1;
@@ -737,7 +766,7 @@ function fazerLogin(){
   });
 }
 
-function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
+function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
 
 function handleApiError(status){
   if(status===401){
@@ -772,6 +801,19 @@ const sheetIdCache={};
 async function getSheetId(nome){if(sheetIdCache[nome])return sheetIdCache[nome];const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties`,{headers:{Authorization:`Bearer ${accessToken}`}});const d=await r.json();d.sheets.forEach(s=>sheetIdCache[s.properties.title]=s.properties.sheetId);return sheetIdCache[nome];}
 async function deletarLinha(aba,rowNum){const sheetId=await getSheetId(aba);const r=await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]})});if(!r.ok)handleApiError(r.status);}
 async function lerAba(aba,hdrs){const rows=await sheetsGet(`${aba}!A2:Z`);return rows.filter(r=>r.some(c=>c!=='')).map(r=>rowToObj(hdrs,r));}
+async function garantirAbaTarefas(){
+  const r=await fetch(`${BASE_URL}?fields=sheets.properties.title`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  const d=await r.json();
+  if(!(d.sheets||[]).some(s=>s.properties.title==='tarefas')){
+    await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'tarefas'}}}]})});
+    await sheetsUpdate('tarefas!A1:G1',[HDR_TAREFAS]);
+  }
+}
+async function carregarTarefas(){
+  try{await garantirAbaTarefas();tarefasManuais=await lerAba('tarefas',HDR_TAREFAS);}
+  catch(e){tarefasManuais=[];console.warn('Tarefas:',e.message);}
+}
 async function encontrarLinha(aba,campo,valor,hdrs){const all=await sheetsGet(`${aba}!A1:Z`);const col=hdrs.indexOf(campo);for(let i=1;i<all.length;i++){if((all[i][col]||'')===String(valor))return i+1;}return -1;}
 
 async function carregarDados(){
@@ -780,7 +822,8 @@ async function carregarDados(){
     processos=await lerAba('processos',HDR_P);showSpinner('📝 Lendo movimentações...');
     movs=await lerAba('movimentacoes',HDR_M);showSpinner('💰 Lendo honorários...');
     alvaras=await lerAba('alvaras',HDR_A);showSpinner('⚙ Lendo configurações...');
-    teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);
+    teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);showSpinner('✓ Lendo tarefas...');
+    await carregarTarefas();
     hideSpinner();renderTudo();toast(`✅ ${processos.length} processo(s) carregado(s)!`);
   }catch(e){hideSpinner();toast('❌ '+e.message,'error');}
   finally{document.getElementById('btnReload').disabled=false;}
@@ -813,6 +856,71 @@ function renderTarefas(){
         <td style="white-space:nowrap"><button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button></td>
       </tr>`;
     }).join('')+'</tbody></table></div>';
+  renderTarefasManuais();
+}
+function renderTarefasManuais(){
+  const cont=document.getElementById('tarefas-manuais');if(!cont)return;
+  const numSet=new Set(processosFiltradosPorPerfil().map(p=>p.num));
+  const lista=tarefasManuais.filter(t=>numSet.has(t.num_processo));
+  if(!lista.length){cont.innerHTML='<div style="color:var(--faint);font-size:12px;padding:10px 0">Nenhuma tarefa manual. Use "+ Adicionar tarefa" para criar uma vinculada a um processo.</div>';return;}
+  const pend=lista.filter(t=>!isBool(t.feita)).sort((a,b)=>String(a.prazo||'9999-99-99').localeCompare(String(b.prazo||'9999-99-99')));
+  const feitas=lista.filter(t=>isBool(t.feita));
+  const linha=t=>{
+    const p=processos.find(x=>x.num===t.num_processo);const feita=isBool(t.feita);
+    const st=t.prazo?statusPrazo(t.prazo):'';
+    const prazoTxt=t.prazo?` • Prazo: ${fmtD(t.prazo)}${st==='vencido'?' ⚠':st==='urgente'?' •':''}`:'';
+    const concTxt=feita&&t.data_conclusao?` • Concluída em ${fmtD(t.data_conclusao)}`:'';
+    return`<div class="tarefa-item ${feita?'feita':''}">
+      <input type="checkbox" ${feita?'checked':''} onchange="toggleTarefaFeita('${t.id}')" title="Marcar como feita">
+      <div style="flex:1">
+        <div class="tarefa-desc">${t.descricao}</div>
+        <div class="tarefa-meta"><span onclick="verDetalhe('${t.num_processo}')" style="color:var(--blue);cursor:pointer">${t.num_processo}${p?' — '+p.autor:''}</span>${prazoTxt}${concTxt}</div>
+      </div>
+      <button class="hist-del-btn" onclick="confirmarExcluirTarefa('${t.id}')" title="Excluir">🗑</button>
+    </div>`;
+  };
+  cont.innerHTML=pend.map(linha).join('')+(feitas.length?`<div style="font-size:10px;color:var(--muted);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.05em">Concluídas (${feitas.length})</div>`+feitas.map(linha).join(''):'');
+}
+function abrirModalTarefa(numProc){
+  const sel=document.getElementById('tf-processo');
+  sel.innerHTML='<option value="">Selecione...</option>'+processos.slice().sort((a,b)=>(a.autor||'').localeCompare(b.autor||'','pt-BR')).map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
+  sel.value=numProc||'';
+  document.getElementById('tf-descricao').value='';document.getElementById('tf-prazo').value='';
+  abrirModal('modal-tarefa');
+}
+async function salvarTarefa(){
+  const num=document.getElementById('tf-processo').value;
+  const desc=document.getElementById('tf-descricao').value.trim();
+  if(!num){toast('Selecione o processo.','warn');return;}
+  if(!desc){toast('Informe a descrição.','warn');return;}
+  const obj={id:uid(),num_processo:num,descricao:desc,prazo:document.getElementById('tf-prazo').value,feita:'FALSE',data_conclusao:'',data_criacao:today()};
+  const btn=document.getElementById('btn-salvar-tarefa');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    await garantirAbaTarefas();
+    await sheetsAppend('tarefas!A:G',[objToRow(HDR_TAREFAS,obj)]);
+    tarefasManuais.push(obj);fecharModal('modal-tarefa');renderTarefas();toast('✅ Tarefa adicionada!');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+async function toggleTarefaFeita(id){
+  const t=tarefasManuais.find(x=>x.id===id);if(!t)return;
+  const nova=!isBool(t.feita);
+  const upd={...t,feita:nova?'TRUE':'FALSE',data_conclusao:nova?today():''};
+  try{
+    const rn=await encontrarLinha('tarefas','id',id,HDR_TAREFAS);if(rn<0)throw new Error('Tarefa não encontrada.');
+    await sheetsUpdate(`tarefas!A${rn}:G${rn}`,[objToRow(HDR_TAREFAS,upd)]);
+    Object.assign(t,upd);renderTarefas();
+  }catch(e){toast('❌ '+e.message,'error');renderTarefas();}
+}
+function confirmarExcluirTarefa(id){
+  const t=tarefasManuais.find(x=>x.id===id);if(!t)return;
+  abrirConfirm(`Excluir a tarefa "${t.descricao}"?`,async()=>{
+    try{
+      const rn=await encontrarLinha('tarefas','id',id,HDR_TAREFAS);if(rn<0)throw new Error('Não encontrada.');
+      await deletarLinha('tarefas',rn);
+      tarefasManuais=tarefasManuais.filter(x=>x.id!==id);renderTarefas();toast('✅ Tarefa excluída!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
 }
 function popularPerfilSelect(){const sel=document.getElementById('perfilSelect');const val=sel.value;sel.innerHTML='<option value="">Coordenador Geral</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');sel.value=val;}
 
