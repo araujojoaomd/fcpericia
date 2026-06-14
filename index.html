@@ -437,7 +437,8 @@ tbody tr:nth-child(even){background:#fafafa}
       <div class="form-field half"><label class="field-label">Perito Assistente</label><select class="field-select" id="f-perito-ass"><option value="">Selecione...</option></select></div>
       <div class="form-field"><label class="field-label">Autor</label><input class="field-input" id="f-autor-proc"></div>
       <div class="form-field"><label class="field-label">Réu</label><input class="field-input" id="f-reu"></div>
-      <div class="form-field"><label class="field-label">Vara</label><input class="field-input" id="f-vara-proc"></div>
+      <div class="form-field half"><label class="field-label">Tribunal</label><input class="field-input" id="f-tribunal" list="dl-tribunais" placeholder="Ex.: TJPE, TRF5..."><datalist id="dl-tribunais"></datalist></div>
+      <div class="form-field half"><label class="field-label">Vara</label><input class="field-input" id="f-vara-proc" list="dl-varas" oninput="onChangeVaraProc()"><datalist id="dl-varas"></datalist></div>
       <div class="form-field"><label class="field-label">Juiz</label><input class="field-input" id="f-juiz"></div>
       <div class="form-field"><label class="field-label">Adv. Autor</label><input class="field-input" id="f-adv-autor"></div>
       <div class="form-field"><label class="field-label">Adv. Réu</label><input class="field-input" id="f-adv-reu"></div>
@@ -601,7 +602,7 @@ const SHEET_ID='1uvApK9wCctjAWGOgH62xA16Gd2aUsCanWFjVIPSWNPw';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
-const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta"];
+const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta","tribunal"];
 const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro","tem_prazo","data_intimacao","prazo_dias","data_limite","data_inicio_diligencia","data_fim_diligencia","dias_diligencia"];
 const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento","observacao","transferido_pa","data_transferencia","perc_imposto","perc_repasse_pa"];
 const HDR_T=["id","assunto","tese","ativo"];
@@ -992,6 +993,8 @@ function renderProcessos(){
     else if(st==='urgente')cardClass+=' prazo-urgente';
     const etapasExib=ETAPAS.filter(e=>e!=='Encerrado');
     const timeline=etapasExib.map((e,i)=>`<div class="etapa-step ${i<idxAtual?'done':i===idxAtual?'current':''}" ><span class="tip">${i+1}. ${e}</span></div>`).join('');
+    const ultMov=mP.length?mP.reduce((a,b)=>(String(a.data_registro||'')>=String(b.data_registro||'')?a:b)):null;
+    const ultMovTxt=ultMov?`${fmtD(ultMov.data_registro)} — ${ultMov.tipo}${ultMov.etapa_nova?': '+ultMov.etapa_nova:''}${ultMov.observacao?' — '+ultMov.observacao:''}`:'Sem movimentações';
     return`<div class="${cardClass}">
       <div class="proc-head">
         <div class="proc-left">
@@ -1007,7 +1010,8 @@ function renderProcessos(){
           <div class="proc-autor">${p.autor}</div>
           <div class="proc-reu">✕ ${p.reu}</div>
           ${p.teses?`<div style="font-size:10px;color:var(--purple);margin-bottom:4px">Teses: ${p.teses}</div>`:''}
-          <div class="proc-meta"><span>⚖ ${p.vara}</span><span>👨‍⚖️ ${p.juiz}</span><span>👤 ${p.perito_assistente||'—'}</span></div>
+          <div class="proc-meta"><span>🏛 ${p.tribunal||'—'}</span><span>⚖ ${p.vara}</span><span>👨‍⚖️ ${p.juiz}</span><span>👤 ${p.perito_assistente||'—'}</span></div>
+          <div class="proc-ultmov" style="font-size:10px;color:var(--muted);margin-top:5px" title="Última movimentação">🕑 ${ultMovTxt}</div>
           <div class="etapa-indicator">${timeline}</div>
         </div>
         <div class="proc-right">
@@ -1188,7 +1192,8 @@ function relVaras(filtroVara){
   Object.keys(grupos).sort().forEach(vara=>{
     const g=grupos[vara].sort((a,b)=>b.saldo-a.saldo);
     const sub=g.reduce((s,d)=>s+d.saldo,0);totalGeral+=sub;
-    html+=`<div class="rel-grupo"><div class="rel-grupo-head"><span style="color:var(--text);font-size:12px">⚖ ${vara}</span><span>${g.length} processo(s) • Saldo: ${fmt(sub)}</span></div>
+    const trib=(g.find(d=>d.p.tribunal)||{p:{}}).p.tribunal;
+    html+=`<div class="rel-grupo"><div class="rel-grupo-head"><span style="color:var(--text);font-size:12px">${trib?'🏛 '+trib+' — ':''}⚖ ${vara}</span><span>${g.length} processo(s) • Saldo: ${fmt(sub)}</span></div>
     <table class="rel-tbl"><thead><tr><th>Processo</th><th>Autor × Réu</th><th>Juiz</th><th>Etapa</th><th>Nomeação</th><th>Prazo</th><th class="num">Honorários</th><th class="num">Direito</th><th class="num">Recebido</th><th class="num">% Alv.</th><th class="num">Saldo a receber</th></tr></thead><tbody>`;
     g.forEach(d=>{
       const p=d.p;const st=statusPrazo(p.data_limite_etapa_atual);
@@ -1344,8 +1349,12 @@ function abrirModalProcesso(modo,num){
   document.getElementById('f-num-aviso').style.display='none';
   const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
   const selA=document.getElementById('f-assunto');selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
+  const tribunais=[...new Set(processos.map(p=>p.tribunal).filter(Boolean))].sort();
+  const varasEx=[...new Set(processos.map(p=>p.vara).filter(Boolean))].sort();
+  document.getElementById('dl-tribunais').innerHTML=tribunais.map(t=>`<option value="${t}">`).join('');
+  document.getElementById('dl-varas').innerHTML=varasEx.map(v=>`<option value="${v}">`).join('');
   if(modo==='novo'){
-    ['f-num','f-autor-proc','f-reu','f-vara-proc','f-juiz','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon'].forEach(id=>document.getElementById(id).value='');
+    ['f-num','f-autor-proc','f-reu','f-vara-proc','f-juiz','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon','f-tribunal'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f-perito-ass').value='';document.getElementById('f-data-nom').value='';document.getElementById('f-gratuidade').checked=false;
     document.getElementById('f-vlr-proposta').value='';carregarTesesProc(selA.value,[]);
     document.getElementById('f-etapa-display').textContent='Apresentar Proposta de Honorários';
@@ -1358,9 +1367,17 @@ function abrirModalProcesso(modo,num){
     document.getElementById('f-data-nom').value=p.data_nomeacao||'';document.getElementById('f-gratuidade').checked=isBool(p.gratuidade);
     document.getElementById('f-perito-ass').value=p.perito_assistente||'';document.getElementById('f-etapa-display').textContent=p.etapa_atual||'Apresentar Proposta de Honorários';
     document.getElementById('f-vlr-proposta').value=String(p.vlr_proposta||'').replace(',','.');
+    document.getElementById('f-tribunal').value=p.tribunal||'';
     carregarTesesProc(p.assunto||'',(p.teses||'').split(',').map(s=>s.trim()).filter(Boolean));
   }
   abrirModal('modal-processo');
+}
+// Auto-preenche o Tribunal a partir de uma vara já cadastrada (varas vinculadas a um tribunal)
+function onChangeVaraProc(){
+  const vara=document.getElementById('f-vara-proc').value.trim();
+  const tEl=document.getElementById('f-tribunal');if(!vara||tEl.value.trim())return;
+  const ref=processos.find(p=>p.vara===vara&&p.tribunal);
+  if(ref)tEl.value=ref.tribunal;
 }
 
 // MOVIMENTAÇÃO
@@ -1419,7 +1436,7 @@ async function salvarDiligencia(){
     const obj={id:uid(),num_processo:numProcDil,tipo:'Diligência',etapa_nova:'',observacao:document.getElementById('dil-obs').value,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:ini,data_fim_diligencia:'',dias_diligencia:''};
     await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,obj)]);movs.push(obj);
     const p=processos.find(x=>x.num===numProcDil);
-    if(p){const upd={...p,em_diligencia:'TRUE'};const rn=await encontrarLinha('processos','num',numProcDil,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+    if(p){const upd={...p,em_diligencia:'TRUE'};const rn=await encontrarLinha('processos','num',numProcDil,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
     toast('✅ Diligência iniciada!');fecharModal('modal-dil');renderTudo();
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Iniciar';}
@@ -1579,7 +1596,7 @@ function verDetalhe(num){
     </div>
     ${paPend>0?`<div style="background:var(--orange-ll);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--orange);font-weight:600">A Transferir ao PA: ${fmt(paPend)}</div>`:''}
     ${nv(p.vlr_proposta)>0?`<div style="background:var(--blue-ll);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--blue)">Proposta do Perito: <strong>${fmt(p.vlr_proposta)}</strong> / Confirmado: <strong>${fmt(hon)}</strong> / Diferença: <strong style="color:${nv(hon)-nv(p.vlr_proposta)<0?'var(--green)':'var(--red-l)'}">${fmt(Math.abs(nv(hon)-nv(p.vlr_proposta)))}</strong></div>`:''}
-    ${[['Autor',p.autor],['Réu',p.reu],['Assunto',p.assunto],['Teses',p.teses||'—'],['Vara',p.vara],['Juiz',p.juiz],['Adv. Autor',p.adv_autor],['Adv. Réu',p.adv_reu],['Valor da Causa',fmt(p.vlr_causa)],['Gratuidade',isBool(p.gratuidade)?'Sim':'Não'],['Perito Assistente',p.perito_assistente||'—'],['Etapa Atual',p.etapa_atual],['Prazo',fmtD(p.data_limite_etapa_atual)],['Em Diligência',isBool(p.em_diligencia)?'Sim':'Não']].map(([k,v])=>`<div class="detail-row"><span class="detail-key">${k}:</span><span>${v||'—'}</span></div>`).join('')}
+    ${[['Autor',p.autor],['Réu',p.reu],['Assunto',p.assunto],['Teses',p.teses||'—'],['Tribunal',p.tribunal],['Vara',p.vara],['Juiz',p.juiz],['Adv. Autor',p.adv_autor],['Adv. Réu',p.adv_reu],['Valor da Causa',fmt(p.vlr_causa)],['Gratuidade',isBool(p.gratuidade)?'Sim':'Não'],['Perito Assistente',p.perito_assistente||'—'],['Etapa Atual',p.etapa_atual],['Prazo',fmtD(p.data_limite_etapa_atual)],['Em Diligência',isBool(p.em_diligencia)?'Sim':'Não']].map(([k,v])=>`<div class="detail-row"><span class="detail-key">${k}:</span><span>${v||'—'}</span></div>`).join('')}
     <div class="section-label">Histórico de Movimentações</div>
     ${hist.length?hist.map(m=>{
       const origIdx=movs.indexOf(m);
@@ -1635,11 +1652,11 @@ async function salvarProcesso(){
   }
   document.getElementById('f-num-aviso').style.display='none';
   const existente=modoProc==='editar'?processos.find(p=>p.num===num):null;
-  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:getTesesProc().join(', '),vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:document.getElementById('f-vlr-proposta').value};
+  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:getTesesProc().join(', '),vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:document.getElementById('f-vlr-proposta').value,tribunal:document.getElementById('f-tribunal').value};
   const btn=document.getElementById('btn-salvar-proc');btn.disabled=true;btn.textContent='⏳ Salvando...';
   try{
-    if(modoProc==='novo'){await sheetsAppend('processos!A:R',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
-    else{const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,obj)]);const idx=processos.findIndex(p=>p.num===num);if(idx>=0)processos[idx]={...obj};toast('✅ Processo atualizado!');}
+    if(modoProc==='novo'){await sheetsAppend('processos!A:S',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
+    else{const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,obj)]);const idx=processos.findIndex(p=>p.num===num);if(idx>=0)processos[idx]={...obj};toast('✅ Processo atualizado!');}
     fecharModal('modal-processo');renderTudo();
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Salvar';}
@@ -1659,7 +1676,7 @@ async function salvarMov(){
       const rn=await encontrarLinha('movimentacoes','id',movDil.id,HDR_M);if(rn<0)throw new Error('Movimentação não encontrada.');
       await sheetsUpdate(`movimentacoes!A${rn}:M${rn}`,[objToRow(HDR_M,upd)]);movs[editMovIdx]={...upd};
       const p=processos.find(x=>x.num===num);
-      if(p){let novaDataLim=p.data_limite_etapa_atual;if(p.data_limite_etapa_atual&&dias>0)novaDataLim=addDiasUteis(p.data_limite_etapa_atual,dias)||p.data_limite_etapa_atual;const updP={...p,em_diligencia:'FALSE',data_limite_etapa_atual:novaDataLim};const rnP=await encontrarLinha('processos','num',num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,updP)]);Object.assign(p,updP);}
+      if(p){let novaDataLim=p.data_limite_etapa_atual;if(p.data_limite_etapa_atual&&dias>0)novaDataLim=addDiasUteis(p.data_limite_etapa_atual,dias)||p.data_limite_etapa_atual;const updP={...p,em_diligencia:'FALSE',data_limite_etapa_atual:novaDataLim};const rnP=await encontrarLinha('processos','num',num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:S${rnP}`,[objToRow(HDR_P,updP)]);Object.assign(p,updP);}
       toast('✅ Diligência encerrada!');fecharModal('modal-mov');renderTudo();return;
     }
     // MOVIMENTAÇÃO NORMAL
@@ -1677,17 +1694,17 @@ async function salvarMov(){
         let novasTeses=p.teses||'';if(etapaNova==='Laudo Pericial Apresentado'){const t=getTesesSelecionadas();if(t.length)novasTeses=t.join(', ');}
         const novaDataLim=temPrazo?obj.data_limite:'';
         const upd={...p,etapa_atual:etapaNova,data_limite_etapa_atual:novaDataLim,teses:novasTeses};
-        const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+        const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
       }
     }
     // Atualiza teses na edição de laudo
     if(modoMov==='editar'&&etapaNova==='Laudo Pericial Apresentado'){
-      const p=processos.find(x=>x.num===num);if(p){const t=getTesesSelecionadas();const upd={...p,teses:t.join(', ')};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+      const p=processos.find(x=>x.num===num);if(p){const t=getTesesSelecionadas();const upd={...p,teses:t.join(', ')};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
     }
     // Valor proposta
     if(etapaNova==='Proposta de Honorários Apresentada'){
       const vlrProposta=document.getElementById('m-vlr-proposta').value;
-      if(vlrProposta){const p=processos.find(x=>x.num===num);if(p){const upd={...p,vlr_proposta:vlrProposta};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      if(vlrProposta){const p=processos.find(x=>x.num===num);if(p){const upd={...p,vlr_proposta:vlrProposta};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
     }
     await verificarEncerramento(num);
     toast(modoMov==='novo'?'✅ Movimentação registrada!':'✅ Movimentação atualizada!');
@@ -1699,7 +1716,7 @@ async function salvarMov(){
 async function verificarEncerramento(num){
   const p=processos.find(x=>x.num===num);if(!p)return;if(p.etapa_atual!=='Sentença Proferida')return;
   const rec=alvaras.filter(a=>a.num_processo===num).reduce((s,a)=>s+nv(a.vlr_recebido),0);const hon=nv(p.vlr_honorario);
-  if(rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
+  if(rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
 }
 
 async function reverterParaEtapaAnterior(num){
@@ -1708,7 +1725,7 @@ async function reverterParaEtapaAnterior(num){
   const novaEtapa=movEtapas.length>0?movEtapas[0].etapa_nova:'Apresentar Proposta de Honorários';
   const novoPrazo=movEtapas.length>0?movEtapas[0].data_limite||'':'';
   const upd={...p,etapa_atual:novaEtapa,data_limite_etapa_atual:novoPrazo};
-  const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:R${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+  const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:S${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
 }
 
 // ─── SALVAR ALVARÁ ────────────────────────────────────────────────────────────
@@ -1759,10 +1776,10 @@ function confirmarExcluirMov(idx){
       if(m.tipo==='Mudança de Etapa')await reverterParaEtapaAnterior(m.num_processo);
       if(m.tipo==='Diligência'){
         const p=processos.find(x=>x.num===m.num_processo);
-        if(p){const upd={...p,em_diligencia:'FALSE'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+        if(p){const upd={...p,em_diligencia:'FALSE'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:S${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
       }
       const p=processos.find(x=>x.num===m.num_processo);
-      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:S${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
       renderTudo();toast('✅ Movimentação excluída!');
     }catch(e){toast('❌ '+e.message,'error');}
   });
@@ -1775,7 +1792,7 @@ function confirmarExcluirAlvara(idx){
       const rn=await encontrarLinha('alvaras','id',a.id,HDR_A);if(rn<0)throw new Error('Não encontrado.');
       await deletarLinha('alvaras',rn);alvaras.splice(idx,1);
       const p=processos.find(x=>x.num===a.num_processo);
-      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(x=>x.num_processo===p.num).reduce((s,x)=>s+nv(x.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:R${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('⚠ Processo reaberto: saldo pendente.');}}
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(x=>x.num_processo===p.num).reduce((s,x)=>s+nv(x.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:S${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('⚠ Processo reaberto: saldo pendente.');}}
       renderTudo();toast('✅ Alvará excluído!');
     }catch(e){toast('❌ '+e.message,'error');}
   });
