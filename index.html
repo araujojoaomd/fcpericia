@@ -604,6 +604,32 @@ tbody tr:nth-child(even){background:#fafafa}
   </div>
 </div>
 
+<!-- MODAL ANEXO -->
+<div class="modal-overlay" id="modal-anexo">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-head"><div class="modal-title">Anexar Documento</div><button class="modal-close" onclick="fecharModal('modal-anexo')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="an-processo-display"></div></div>
+      <div class="form-field"><label class="field-label">Tipo do arquivo *</label>
+        <select class="field-select" id="an-tipo" onchange="atualizarPreviewAnexo()">
+          <option value="Laudo Pericial">Laudo Pericial</option>
+          <option value="Apêndices e Anexos">Apêndices e Anexos</option>
+          <option value="Solicitação de Pagamentos">Solicitação de Pagamentos</option>
+          <option value="Esclarecimentos Complementares">Esclarecimentos Complementares</option>
+          <option value="Resposta aos Quesitos">Resposta aos Quesitos</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="field-label">Arquivo *</label><input class="field-input" id="an-file" type="file" onchange="atualizarPreviewAnexo()"></div>
+      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">📁 Pasta: <b id="an-pasta-preview">—</b><br>📄 Nome: <b id="an-nome-preview">—</b></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-anexo')">Cancelar</button>
+      <button class="modal-save btn-blue" id="btn-salvar-anexo" onclick="salvarAnexo()">⬆ Enviar ao Drive</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM -->
 <div class="confirm-overlay" id="confirm-del">
   <div class="confirm-box">
@@ -635,8 +661,10 @@ tbody tr:nth-child(even){background:#fafafa}
 <script>
 const CLIENT_ID='1080539379296-6slkhm3vgtcp6g7pgk9plqk918ulbnr3.apps.googleusercontent.com';
 const SHEET_ID='1uvApK9wCctjAWGOgH62xA16Gd2aUsCanWFjVIPSWNPw';
+// ⬇️ COLE AQUI o ID da pasta-mae de anexos no Drive (o trecho da URL apos /folders/)
+const DRIVE_ANEXOS_FOLDER_ID='';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
-const SCOPES='https://www.googleapis.com/auth/spreadsheets';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
 const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta","tribunal"];
 const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro","tem_prazo","data_intimacao","prazo_dias","data_limite","data_inicio_diligencia","data_fim_diligencia","dias_diligencia"];
@@ -656,6 +684,7 @@ let modoAlv='novo',editAlvIdx=-1;
 let modoTese='novo',editTeseIdx=-1;
 let modoPerito='novo',editPeritoIdx=-1;
 let perfilAtual='';
+let anexoProcNum='';
 
 const uid=()=>Math.random().toString(36).slice(2,10);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');};
@@ -939,6 +968,79 @@ function confirmarExcluirTarefa(id){
 }
 function popularPerfilSelect(){const sel=document.getElementById('perfilSelect');const val=sel.value;sel.innerHTML='<option value="">Coordenador Geral</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');sel.value=val;}
 
+// ─── ANEXOS (GOOGLE DRIVE) ────────────────────────────────────────────────────
+const _sane=s=>String(s||'').replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
+const _ext=nome=>{const i=String(nome||'').lastIndexOf('.');return i>0?nome.slice(i):'';};
+function iniciaisAutor(nome){
+  const skip=new Set(['de','da','do','dos','das','e']);
+  return (nome||'').trim().split(/\s+/).filter(w=>w&&!skip.has(w.toLowerCase())).map(w=>w[0].toUpperCase()).join('');
+}
+function nomeSubpasta(p){return _sane(`${p.tribunal||'Sem tribunal'} - ${p.num} - ${p.autor||''}`);}
+function nomeArquivoAnexo(p,tipo,ext){return _sane(`${tipo} - ${p.num} - ${iniciaisAutor(p.autor)}`)+ext;}
+async function driveBuscarSubpasta(nome,parent){
+  const q=encodeURIComponent(`'${parent}' in parents and name='${nome.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  const d=await r.json();return d.files&&d.files.length?d.files[0].id:null;
+}
+async function driveAcharOuCriarSubpasta(p){
+  const nome=nomeSubpasta(p);
+  let id=await driveBuscarSubpasta(nome,DRIVE_ANEXOS_FOLDER_ID);
+  if(id)return id;
+  const r=await fetch('https://www.googleapis.com/drive/v3/files?fields=id&supportsAllDrives=true',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({name:nome,mimeType:'application/vnd.google-apps.folder',parents:[DRIVE_ANEXOS_FOLDER_ID]})});
+  if(!r.ok)handleApiError(r.status);
+  return (await r.json()).id;
+}
+async function driveUpload(file,nome,parentId){
+  const r1=await fetch('https://www.googleapis.com/drive/v3/files?fields=id&supportsAllDrives=true',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({name:nome,parents:[parentId]})});
+  if(!r1.ok)handleApiError(r1.status);
+  const {id}=await r1.json();
+  const r2=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&fields=id,webViewLink&supportsAllDrives=true`,{method:'PATCH',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':file.type||'application/octet-stream'},body:file});
+  if(!r2.ok)handleApiError(r2.status);
+  return await r2.json();
+}
+function abrirModalAnexo(num){
+  if(!DRIVE_ANEXOS_FOLDER_ID){toast('Pasta do Drive não configurada (DRIVE_ANEXOS_FOLDER_ID).','warn');return;}
+  anexoProcNum=num;const p=processos.find(x=>x.num===num);if(!p)return;
+  document.getElementById('an-processo-display').textContent=`${num} — ${p.autor||''}`;
+  document.getElementById('an-tipo').value='Laudo Pericial';
+  document.getElementById('an-file').value='';
+  document.getElementById('an-pasta-preview').textContent=nomeSubpasta(p);
+  atualizarPreviewAnexo();
+  abrirModal('modal-anexo');
+}
+function atualizarPreviewAnexo(){
+  const p=processos.find(x=>x.num===anexoProcNum);if(!p)return;
+  const tipo=document.getElementById('an-tipo').value;
+  const f=document.getElementById('an-file').files[0];
+  document.getElementById('an-nome-preview').textContent=nomeArquivoAnexo(p,tipo,f?_ext(f.name):'');
+}
+async function salvarAnexo(){
+  if(!DRIVE_ANEXOS_FOLDER_ID){toast('Pasta do Drive não configurada.','warn');return;}
+  const p=processos.find(x=>x.num===anexoProcNum);if(!p)return;
+  const f=document.getElementById('an-file').files[0];if(!f){toast('Escolha um arquivo.','warn');return;}
+  const tipo=document.getElementById('an-tipo').value;
+  const nomeArq=nomeArquivoAnexo(p,tipo,_ext(f.name));
+  const btn=document.getElementById('btn-salvar-anexo');btn.disabled=true;btn.textContent='⏳ Enviando...';
+  try{
+    const subId=await driveAcharOuCriarSubpasta(p);
+    const up=await driveUpload(f,nomeArq,subId);
+    fecharModal('modal-anexo');
+    toast('✅ Anexo enviado ao Drive!');
+    if(up&&up.webViewLink)window.open(up.webViewLink,'_blank');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='⬆ Enviar ao Drive';}
+}
+async function abrirPastaProcesso(num){
+  if(!DRIVE_ANEXOS_FOLDER_ID){toast('Pasta do Drive não configurada.','warn');return;}
+  const p=processos.find(x=>x.num===num);if(!p)return;
+  try{
+    const id=await driveBuscarSubpasta(nomeSubpasta(p),DRIVE_ANEXOS_FOLDER_ID);
+    if(!id){toast('Ainda não há anexos para este processo.','warn');return;}
+    window.open(`https://drive.google.com/drive/folders/${id}`,'_blank');
+  }catch(e){toast('❌ '+e.message,'error');}
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 let dashFiltro='';
 function setDashFiltro(f){dashFiltro=(f==='total')?'':(dashFiltro===f?'':f);renderDashboard();}
@@ -1187,6 +1289,8 @@ function renderProcessos(){
         <button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button>
         <button class="act-btn act-yellow" onclick="abrirModalAlvara('${p.num}')">+ Alvará</button>
         <button class="act-btn act-gray" onclick="abrirModalTarefa('${p.num}')">+ Tarefa</button>
+        <button class="act-btn act-blue" onclick="abrirModalAnexo('${p.num}')">+ Anexo</button>
+        <button class="act-btn act-gray" onclick="abrirPastaProcesso('${p.num}')">📎 Pasta</button>
         ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
         ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
         ${!encerrado?`<button class="act-btn act-red" onclick="confirmarExcluirProcesso('${p.num}')">Excluir</button>`:''}
