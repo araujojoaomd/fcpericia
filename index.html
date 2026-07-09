@@ -437,7 +437,9 @@ tbody tr:nth-child(even){background:#fafafa}
         <p class="page-sub">Gerenciar peritos, assuntos e teses</p>
         <div class="topbar"><div style="font-size:13px;font-weight:700">Peritos Assistentes</div><button class="primary-btn btn-blue" onclick="abrirModalPerito('novo')">+ Novo Perito</button></div>
         <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-peritos"></tbody></table></div>
-        <div class="topbar"><div style="font-size:13px;font-weight:700">Assuntos e Teses</div><button class="primary-btn btn-purple" onclick="abrirModalTese('novo')">+ Nova Tese</button></div>
+        <div class="topbar"><div style="font-size:13px;font-weight:700">Assuntos</div><button class="primary-btn btn-purple" onclick="abrirModalAssunto('novo')">+ Novo Assunto</button></div>
+        <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Assunto</th><th>Teses</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-assuntos"></tbody></table></div>
+        <div class="topbar"><div style="font-size:13px;font-weight:700">Teses</div><button class="primary-btn btn-purple" onclick="abrirModalTese('novo')">+ Nova Tese</button></div>
         <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
       </div>
     </div>
@@ -576,13 +578,28 @@ tbody tr:nth-child(even){background:#fafafa}
   <div class="modal-box" style="max-width:440px">
     <div class="modal-head"><div class="modal-title" id="modal-tese-title">Nova Tese</div><button class="modal-close" onclick="fecharModal('modal-tese')">✕</button></div>
     <div class="form-grid">
-      <div class="form-field"><label class="field-label">Assunto *</label><input class="field-input" id="t-assunto"></div>
+      <div class="form-field"><label class="field-label">Assunto *</label><select class="field-select" id="t-assunto"><option value="">Selecione...</option></select></div>
       <div class="form-field"><label class="field-label">Tese</label><input class="field-input" id="t-tese"></div>
       <div class="form-field"><label class="check-label"><input type="checkbox" id="t-ativo" checked> Ativo</label></div>
     </div>
     <div class="modal-footer">
       <button class="modal-cancel" onclick="fecharModal('modal-tese')">Cancelar</button>
       <button class="modal-save btn-purple" id="btn-salvar-tese" onclick="salvarTese()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ASSUNTO -->
+<div class="modal-overlay" id="modal-assunto">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><div class="modal-title" id="modal-assunto-title">Novo Assunto</div><button class="modal-close" onclick="fecharModal('modal-assunto')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Nome do Assunto *</label><input class="field-input" id="as-nome"></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="as-ativo" checked> Ativo</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-assunto')">Cancelar</button>
+      <button class="modal-save btn-purple" id="btn-salvar-assunto" onclick="salvarAssunto()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -672,16 +689,18 @@ const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento"
 const HDR_T=["id","assunto","tese","ativo"];
 const HDR_PE=["id","nome","email","ativo"];
 const HDR_TAREFAS=["id","num_processo","descricao","prazo","feita","data_conclusao","data_criacao","responsavel"];
+const HDR_ASSUNTOS=["id","nome","ativo"];
 const ETAPAS=["Apresentar Proposta de Honorários","Proposta de Honorários Apresentada","Apresentar Defesa da Proposta","Defesa da Proposta Apresentada","Apresentar Laudo Pericial","Laudo Pericial Apresentado","Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado","Sentença Proferida","Encerrado"];
 const ETAPAS_COM_PRAZO=new Set(["Apresentar Proposta de Honorários","Apresentar Defesa da Proposta","Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
 
-let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[];
+let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[];
 let modoProc='novo';
 let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
 let modoAlv='novo',editAlvIdx=-1;
 let modoTese='novo',editTeseIdx=-1;
+let modoAssunto='novo',editAssuntoIdx=-1;
 let modoPerito='novo',editPeritoIdx=-1;
 let perfilAtual='';
 let anexoProcNum='';
@@ -796,7 +815,7 @@ function fazerLogin(){
   });
 }
 
-function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
+function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];listaAssuntos=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
 
 function handleApiError(status){
   if(status===401){
@@ -844,6 +863,22 @@ async function carregarTarefas(){
   try{await garantirAbaTarefas();tarefasManuais=await lerAba('tarefas',HDR_TAREFAS);}
   catch(e){tarefasManuais=[];console.warn('Tarefas:',e.message);}
 }
+// Cria a aba 'assuntos' (se nao existir) e migra os assuntos distintos ja usados nas teses
+async function garantirAbaAssuntos(){
+  const r=await fetch(`${BASE_URL}?fields=sheets.properties.title`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  const d=await r.json();
+  if(!(d.sheets||[]).some(s=>s.properties.title==='assuntos')){
+    await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'assuntos'}}}]})});
+    await sheetsUpdate('assuntos!A1:C1',[HDR_ASSUNTOS]);
+    const nomes=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
+    if(nomes.length)await sheetsAppend('assuntos!A:C',nomes.map(n=>objToRow(HDR_ASSUNTOS,{id:uid(),nome:n,ativo:'TRUE'})));
+  }
+}
+async function carregarAssuntos(){
+  try{await garantirAbaAssuntos();listaAssuntos=await lerAba('assuntos',HDR_ASSUNTOS);}
+  catch(e){listaAssuntos=[];console.warn('Assuntos:',e.message);}
+}
 async function encontrarLinha(aba,campo,valor,hdrs){const all=await sheetsGet(`${aba}!A1:Z`);const col=hdrs.indexOf(campo);for(let i=1;i<all.length;i++){if((all[i][col]||'')===String(valor))return i+1;}return -1;}
 
 async function carregarDados(){
@@ -853,7 +888,7 @@ async function carregarDados(){
     movs=await lerAba('movimentacoes',HDR_M);showSpinner('💰 Lendo honorários...');
     alvaras=await lerAba('alvaras',HDR_A);showSpinner('⚙ Lendo configurações...');
     teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);showSpinner('✓ Lendo tarefas...');
-    await carregarTarefas();
+    await carregarAssuntos();await carregarTarefas();
     hideSpinner();renderTudo();toast(`✅ ${processos.length} processo(s) carregado(s)!`);
   }catch(e){hideSpinner();toast('❌ '+e.message,'error');}
   finally{document.getElementById('btnReload').disabled=false;}
@@ -1408,6 +1443,8 @@ function renderAlvaras(){
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 function renderConfig(){
   document.getElementById('tbl-peritos').innerHTML=peritos.length?peritos.map((p,i)=>`<tr><td style="font-weight:600">${p.nome}</td><td style="color:var(--muted)">${p.email||'—'}</td><td>${isBool(p.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalPerito('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirPerito(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhum perito cadastrado.</td></tr>';
+  const ta=document.getElementById('tbl-assuntos');
+  if(ta)ta.innerHTML=listaAssuntos.length?listaAssuntos.map((a,i)=>{const nT=teses.filter(t=>t.assunto===a.nome).length;return`<tr><td><span class="badge badge-purple">${a.nome}</span></td><td style="color:var(--muted)">${nT} tese(s)</td><td>${isBool(a.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalAssunto('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirAssunto(${i})">Excluir</button></td></tr>`;}).join(''):'<tr class="empty-row"><td colspan="4">Nenhum assunto cadastrado.</td></tr>';
   document.getElementById('tbl-config').innerHTML=teses.length?teses.map((t,i)=>`<tr><td><span class="badge badge-purple">${t.assunto}</span></td><td>${t.tese||'—'}</td><td>${isBool(t.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalTese('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirTese(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhuma tese cadastrada.</td></tr>';
 }
 
@@ -1569,7 +1606,7 @@ function popularFiltros(){
   msPopular('ms-fm-processo',nums);msPopular('ms-fm-autor',autores);msPopular('ms-fm-vara',varas);msPopular('ms-fm-tipo',['Mudança de Etapa','Observação Simples','Diligência']);
   msPopular('ms-fa-processo',nums);msPopular('ms-fa-autor',autores);msPopular('ms-fa-vara',varas);
   msPopular('ms-fa-transf',[{value:'sim',label:'✓ Transferido'},{value:'pendente',label:'Pendente'}]);
-  const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
+  const assuntos=[...new Set([...listaAssuntos.map(a=>a.nome),...processos.map(p=>p.assunto)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const selA=document.getElementById('f-assunto');if(selA)selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
   const selP=document.getElementById('f-perito-ass');if(selP)selP.innerHTML='<option value="">Selecione...</option>'+peritos.filter(p=>isBool(p.ativo)).map(p=>`<option value="${p.nome}">${p.nome}</option>`).join('');
   const optsProc='<option value="">Selecione...</option>'+base.map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
@@ -1608,7 +1645,7 @@ function abrirModalProcesso(modo,num){
   document.getElementById('modal-proc-title').textContent=modo==='novo'?'Novo Processo':'Editar Processo';
   document.getElementById('f-num').disabled=(modo==='editar');
   document.getElementById('f-num-aviso').style.display='none';
-  const assuntos=[...new Set(teses.map(t=>t.assunto).filter(Boolean))].sort();
+  const assuntos=[...new Set([...listaAssuntos.map(a=>a.nome),...processos.map(p=>p.assunto)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const selA=document.getElementById('f-assunto');selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
   const tribunais=[...new Set(processos.map(p=>p.tribunal).filter(Boolean))].sort();
   const varasEx=[...new Set(processos.map(p=>p.vara).filter(Boolean))].sort();
@@ -1833,7 +1870,57 @@ function toggleTransf(){document.getElementById('a-transf-field').style.display=
 
 // PERITO / TESE
 function abrirModalPerito(modo,idx){modoPerito=modo;editPeritoIdx=idx??-1;document.getElementById('modal-perito-title').textContent=modo==='novo'?'Novo Perito':'Editar Perito';if(modo==='novo'){document.getElementById('p-nome').value='';document.getElementById('p-email').value='';document.getElementById('p-ativo').checked=true;}else{const p=peritos[idx];document.getElementById('p-nome').value=p.nome;document.getElementById('p-email').value=p.email||'';document.getElementById('p-ativo').checked=isBool(p.ativo);}abrirModal('modal-perito');}
-function abrirModalTese(modo,idx){modoTese=modo;editTeseIdx=idx??-1;document.getElementById('modal-tese-title').textContent=modo==='novo'?'Nova Tese':'Editar Tese';if(modo==='novo'){document.getElementById('t-assunto').value='';document.getElementById('t-tese').value='';document.getElementById('t-ativo').checked=true;}else{const t=teses[idx];document.getElementById('t-assunto').value=t.assunto;document.getElementById('t-tese').value=t.tese||'';document.getElementById('t-ativo').checked=isBool(t.ativo);}abrirModal('modal-tese');}
+function popularSelectAssuntos(selId,valor){
+  const sel=document.getElementById(selId);if(!sel)return;
+  const nomes=listaAssuntos.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR')).map(a=>a.nome);
+  const lista=valor&&!nomes.includes(valor)?[valor,...nomes]:nomes;
+  sel.innerHTML='<option value="">Selecione...</option>'+lista.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.value=valor||'';
+}
+function abrirModalTese(modo,idx){modoTese=modo;editTeseIdx=idx??-1;document.getElementById('modal-tese-title').textContent=modo==='novo'?'Nova Tese':'Editar Tese';if(modo==='novo'){popularSelectAssuntos('t-assunto','');document.getElementById('t-tese').value='';document.getElementById('t-ativo').checked=true;}else{const t=teses[idx];popularSelectAssuntos('t-assunto',t.assunto);document.getElementById('t-tese').value=t.tese||'';document.getElementById('t-ativo').checked=isBool(t.ativo);}abrirModal('modal-tese');}
+// ─── ASSUNTOS (CRUD) ──────────────────────────────────────────────────────────
+function abrirModalAssunto(modo,idx){
+  modoAssunto=modo;editAssuntoIdx=idx??-1;
+  document.getElementById('modal-assunto-title').textContent=modo==='novo'?'Novo Assunto':'Editar Assunto';
+  if(modo==='novo'){document.getElementById('as-nome').value='';document.getElementById('as-ativo').checked=true;}
+  else{const a=listaAssuntos[idx];document.getElementById('as-nome').value=a.nome||'';document.getElementById('as-ativo').checked=isBool(a.ativo);}
+  abrirModal('modal-assunto');
+}
+async function salvarAssunto(){
+  const nome=document.getElementById('as-nome').value.trim();
+  if(!nome){toast('Informe o nome do assunto.','warn');return;}
+  const nomeAntigo=modoAssunto==='editar'?listaAssuntos[editAssuntoIdx].nome:'';
+  const dup=listaAssuntos.find((a,i)=>a.nome.toLowerCase()===nome.toLowerCase()&&i!==editAssuntoIdx);
+  if(dup){toast('Já existe um assunto com esse nome.','warn');return;}
+  const obj={id:modoAssunto==='editar'?listaAssuntos[editAssuntoIdx].id:uid(),nome,ativo:boolStr(document.getElementById('as-ativo').checked)};
+  const btn=document.getElementById('btn-salvar-assunto');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    if(modoAssunto==='novo'){await sheetsAppend('assuntos!A:C',[objToRow(HDR_ASSUNTOS,obj)]);listaAssuntos.push(obj);toast('✅ Assunto cadastrado!');}
+    else{
+      const rn=await encontrarLinha('assuntos','id',obj.id,HDR_ASSUNTOS);if(rn<0)throw new Error('Não encontrado.');
+      await sheetsUpdate(`assuntos!A${rn}:C${rn}`,[objToRow(HDR_ASSUNTOS,obj)]);listaAssuntos[editAssuntoIdx]={...obj};
+      // Renomeou? Propaga para as teses e processos que referenciam esse assunto
+      if(nomeAntigo&&nomeAntigo!==nome){
+        for(const t of teses.filter(x=>x.assunto===nomeAntigo)){const upd={...t,assunto:nome};const r=await encontrarLinha('assuntos_teses','id',t.id,HDR_T);if(r>0)await sheetsUpdate(`assuntos_teses!A${r}:D${r}`,[objToRow(HDR_T,upd)]);Object.assign(t,upd);}
+        for(const p of processos.filter(x=>x.assunto===nomeAntigo)){const upd={...p,assunto:nome};const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0)await sheetsUpdate(`processos!A${r}:S${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+      }
+      toast('✅ Assunto atualizado!');
+    }
+    fecharModal('modal-assunto');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+function confirmarExcluirAssunto(idx){
+  const a=listaAssuntos[idx];
+  const nT=teses.filter(t=>t.assunto===a.nome).length;
+  if(nT>0){toast(`Não é possível excluir: o assunto "${a.nome}" tem ${nT} tese(s). Remova as teses primeiro.`,'warn');return;}
+  abrirConfirm(`Excluir o assunto "${a.nome}"?`,async()=>{
+    try{
+      const rn=await encontrarLinha('assuntos','id',a.id,HDR_ASSUNTOS);if(rn<0)throw new Error('Não encontrado.');
+      await deletarLinha('assuntos',rn);listaAssuntos.splice(idx,1);renderTudo();toast('✅ Assunto excluído!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
 
 // ─── DETALHE ─────────────────────────────────────────────────────────────────
 function verDetalhe(num){
