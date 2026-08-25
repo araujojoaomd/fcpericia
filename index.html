@@ -655,6 +655,22 @@ tbody tr:nth-child(even){background:#fafafa}
   </div>
 </div>
 
+<!-- MODAL CANCELAR PROCESSO -->
+<div class="modal-overlay" id="modal-cancelar">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><div class="modal-title">Cancelar Processo</div><button class="modal-close" onclick="fecharModal('modal-cancelar')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="cn-processo-display"></div></div>
+      <div class="form-field"><label class="field-label">Motivo do cancelamento *</label><textarea class="field-input" id="cn-motivo" rows="3" style="resize:vertical;font-family:inherit" placeholder="Ex.: desistência da ação; acordo entre as partes; extinção sem participação do perito..."></textarea></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">O processo é mantido no sistema como <b>Cancelado</b> e o motivo fica registrado no histórico de movimentações.</div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-cancelar')">Voltar</button>
+      <button class="modal-save btn-red" id="btn-confirmar-cancelar" style="background:var(--red-l)" onclick="confirmarCancelarProcesso()">✕ Cancelar processo</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM -->
 <div class="confirm-overlay" id="confirm-del">
   <div class="confirm-box">
@@ -691,7 +707,7 @@ const DRIVE_ANEXOS_FOLDER_ID='1u2TwlJnZ2BSseOv07DGAAaDwNvJkNPgO';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
-const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta","tribunal","teor_sentenca"];
+const HDR_P=["num","autor","reu","assunto","teses","vara","juiz","adv_autor","adv_reu","vlr_causa","gratuidade","data_nomeacao","vlr_honorario","perito_assistente","etapa_atual","data_limite_etapa_atual","em_diligencia","vlr_proposta","tribunal","teor_sentenca","motivo_cancelamento"];
 const HDR_M=["id","num_processo","tipo","etapa_nova","observacao","data_registro","tem_prazo","data_intimacao","prazo_dias","data_limite","data_inicio_diligencia","data_fim_diligencia","dias_diligencia"];
 const HDR_A=["id","num_processo","perc_alvara","vlr_recebido","data_recebimento","observacao","transferido_pa","data_transferencia","perc_imposto","perc_repasse_pa"];
 const HDR_T=["id","assunto","tese","ativo"];
@@ -1084,13 +1100,49 @@ async function abrirPastaProcesso(num){
   }catch(e){toast('❌ '+e.message,'error');}
 }
 
+// ─── CANCELAMENTO DE PROCESSO ─────────────────────────────────────────────────
+let cancelarProcNum='';
+function cancelarProcesso(num){
+  cancelarProcNum=num;const p=processos.find(x=>x.num===num);if(!p)return;
+  document.getElementById('cn-processo-display').textContent=`${num} — ${p.autor||''}`;
+  document.getElementById('cn-motivo').value='';
+  abrirModal('modal-cancelar');
+}
+async function confirmarCancelarProcesso(){
+  const p=processos.find(x=>x.num===cancelarProcNum);if(!p)return;
+  const motivo=document.getElementById('cn-motivo').value.trim();
+  if(!motivo){toast('Informe o motivo do cancelamento.','warn');return;}
+  const btn=document.getElementById('btn-confirmar-cancelar');btn.disabled=true;btn.textContent='⏳ Cancelando...';
+  try{
+    const mov={id:uid(),num_processo:p.num,tipo:'Observação Simples',etapa_nova:'',observacao:'❌ Processo cancelado — '+motivo,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:'',data_fim_diligencia:'',dias_diligencia:''};
+    await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,mov)]);movs.push(mov);
+    const upd={...p,etapa_atual:'Cancelado',em_diligencia:'FALSE',data_limite_etapa_atual:'',motivo_cancelamento:motivo};
+    const rn=await encontrarLinha('processos','num',p.num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+    fecharModal('modal-cancelar');renderTudo();toast('✅ Processo cancelado.');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='✕ Cancelar processo';}
+}
+function reabrirProcesso(num){
+  const p=processos.find(x=>x.num===num);if(!p)return;
+  abrirConfirm(`Reabrir o processo ${num}? Ele volta para a última etapa registrada.`,async()=>{
+    try{
+      const movEtapas=movs.filter(m=>m.num_processo===num&&m.tipo==='Mudança de Etapa'&&m.etapa_nova).sort((a,b)=>a.data_registro>b.data_registro?-1:1);
+      const novaEtapa=movEtapas.length?movEtapas[0].etapa_nova:'Apresentar Proposta de Honorários';
+      const novoPrazo=movEtapas.length?(movEtapas[0].data_limite||''):'';
+      const upd={...p,etapa_atual:novaEtapa,data_limite_etapa_atual:novoPrazo,motivo_cancelamento:''};
+      const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+      renderTudo();toast('✅ Processo reaberto!');
+    }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 let dashFiltro='';
 function setDashFiltro(f){dashFiltro=(f==='total')?'':(dashFiltro===f?'':f);renderDashboard();}
 function renderDashboard(){
   const procs=processosFiltradosPorPerfil();
   document.getElementById('dash-sub').textContent=perfilAtual?`Perito: ${perfilAtual}`:'Coordenador Geral';
-  const ativos=procs.filter(p=>p.etapa_atual!=='Encerrado').length;
+  const ativos=procs.filter(p=>!['Encerrado','Cancelado'].includes(p.etapa_atual)).length;
   const urgentes=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente').length;
   const vencidos=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido').length;
   const emDil=procs.filter(p=>isBool(p.em_diligencia)).length;
@@ -1127,7 +1179,7 @@ function renderDashboard(){
       return true;
     });
   }else{
-    atv=procs.filter(p=>p.etapa_atual!=='Encerrado');
+    atv=procs.filter(p=>!['Encerrado','Cancelado'].includes(p.etapa_atual));
     if(dashFiltro==='urgente')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente');
     else if(dashFiltro==='vencido')atv=atv.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido');
     else if(dashFiltro==='diligencia')atv=atv.filter(p=>isBool(p.em_diligencia));
@@ -1284,10 +1336,11 @@ function renderProcessos(){
     const paTransf=aP.filter(a=>!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
     const dilAtiva=isBool(p.em_diligencia);
     const encerrado=p.etapa_atual==='Encerrado';
+    const cancelado=p.etapa_atual==='Cancelado';
     const st=statusPrazo(p.data_limite_etapa_atual);
     const idxAtual=ETAPAS.indexOf(p.etapa_atual);
     let cardClass='proc-card';
-    if(encerrado)cardClass+=' encerrado';
+    if(encerrado||cancelado)cardClass+=' encerrado';
     else if(dilAtiva)cardClass+=' diligencia';
     else if(st==='vencido')cardClass+=' prazo-vencido';
     else if(st==='urgente')cardClass+=' prazo-urgente';
@@ -1306,6 +1359,7 @@ function renderProcessos(){
             ${dilAtiva?'<div class="diligencia-badge">🔄 Em Diligência</div>':''}
             ${!dilAtiva&&p.data_limite_etapa_atual?prazoBadge(p.data_limite_etapa_atual):''}
             ${encerrado?'<span class="badge badge-green">✓ Encerrado</span>':''}
+            ${cancelado?'<span class="badge" style="background:var(--red-ll);color:var(--red)">✕ Cancelado</span>':''}
             ${tPend?`<span class="badge badge-orange" title="Tarefas manuais pendentes">📌 ${tPend} tarefa(s)</span>`:''}
           </div>
           <div class="proc-autor">${p.autor}</div>
@@ -1313,7 +1367,7 @@ function renderProcessos(){
           ${p.teses?`<div style="font-size:10px;color:var(--purple);margin-bottom:4px">Teses: ${p.teses}</div>`:''}
           <div class="proc-meta"><span>🏛 ${p.tribunal||'—'}</span><span>⚖ ${p.vara}</span><span>👨‍⚖️ ${p.juiz}</span><span>👤 ${p.perito_assistente||'—'}</span></div>
           <div class="proc-ultmov" style="font-size:10px;color:var(--muted);margin-top:5px" title="Última movimentação">🕑 ${ultMovTxt}</div>
-          <div class="etapa-indicator">${timeline}</div>
+          ${cancelado?`<div style="font-size:11px;color:var(--red);margin-top:6px;background:var(--red-ll);border-radius:6px;padding:6px 9px">✕ <b>Cancelado</b> — ${p.motivo_cancelamento||'sem motivo informado'}</div>`:`<div class="etapa-indicator">${timeline}</div>`}
         </div>
         <div class="proc-right">
           <div class="fin-grid" style="grid-template-columns:1fr 1fr;gap:6px">
@@ -1329,6 +1383,11 @@ function renderProcessos(){
       <div class="proc-actions">
         <button class="act-btn act-gray" onclick="verDetalhe('${p.num}')">Ver detalhes</button>
         <button class="act-btn act-blue" onclick="abrirModalProcesso('editar','${p.num}')">Editar</button>
+        ${cancelado?`
+        <button class="act-btn act-blue" onclick="abrirModalAnexo('${p.num}')">+ Anexo</button>
+        <button class="act-btn act-gray" onclick="abrirPastaProcesso('${p.num}')">📎 Pasta</button>
+        <button class="act-btn act-green" onclick="reabrirProcesso('${p.num}')">↺ Reabrir</button>
+        `:`
         <button class="act-btn act-green" onclick="abrirModalMov('${p.num}')">+ Movimentação</button>
         <button class="act-btn act-yellow" onclick="abrirModalAlvara('${p.num}')">+ Alvará</button>
         <button class="act-btn act-gray" onclick="abrirModalTarefa('${p.num}')">+ Tarefa</button>
@@ -1336,7 +1395,9 @@ function renderProcessos(){
         <button class="act-btn act-gray" onclick="abrirPastaProcesso('${p.num}')">📎 Pasta</button>
         ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
         ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
+        ${!encerrado?`<button class="act-btn act-orange" onclick="cancelarProcesso('${p.num}')">✕ Cancelar</button>`:''}
         ${!encerrado?`<button class="act-btn act-red" onclick="confirmarExcluirProcesso('${p.num}')">Excluir</button>`:''}
+        `}
       </div>
     </div>`;
   }).join('');
@@ -1609,7 +1670,7 @@ function popularFiltros(){
   const autores=[...new Set(base.map(p=>p.autor).filter(Boolean))].sort();
   const varas=[...new Set(base.map(p=>p.vara).filter(Boolean))].sort();
   const nums=[...new Set(base.map(p=>p.num).filter(Boolean))].sort();
-  msPopular('ms-f-autor',autores);msPopular('ms-f-vara',varas);msPopular('ms-f-etapa',ETAPAS);
+  msPopular('ms-f-autor',autores);msPopular('ms-f-vara',varas);msPopular('ms-f-etapa',[...ETAPAS,'Cancelado']);
   msPopular('ms-f-prazo',[{value:'com_prazo',label:'Com prazo'},{value:'urgente',label:'⚠ Urgente'},{value:'vencido',label:'🔴 Vencido'}]);
   msPopular('ms-fm-processo',nums);msPopular('ms-fm-autor',autores);msPopular('ms-fm-vara',varas);msPopular('ms-fm-tipo',['Mudança de Etapa','Observação Simples','Diligência']);
   msPopular('ms-fa-processo',nums);msPopular('ms-fa-autor',autores);msPopular('ms-fa-vara',varas);
@@ -1745,7 +1806,7 @@ async function salvarDiligencia(){
     const obj={id:uid(),num_processo:numProcDil,tipo:'Diligência',etapa_nova:'',observacao:document.getElementById('dil-obs').value,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:ini,data_fim_diligencia:'',dias_diligencia:''};
     await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,obj)]);movs.push(obj);
     const p=processos.find(x=>x.num===numProcDil);
-    if(p){const upd={...p,em_diligencia:'TRUE'};const rn=await encontrarLinha('processos','num',numProcDil,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+    if(p){const upd={...p,em_diligencia:'TRUE'};const rn=await encontrarLinha('processos','num',numProcDil,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
     toast('✅ Diligência iniciada!');fecharModal('modal-dil');renderTudo();
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Iniciar';}
@@ -1918,7 +1979,7 @@ async function salvarAssunto(){
       // Renomeou? Propaga para as teses e processos que referenciam esse assunto
       if(nomeAntigo&&nomeAntigo!==nome){
         for(const t of teses.filter(x=>x.assunto===nomeAntigo)){const upd={...t,assunto:nome};const r=await encontrarLinha('assuntos_teses','id',t.id,HDR_T);if(r>0)await sheetsUpdate(`assuntos_teses!A${r}:D${r}`,[objToRow(HDR_T,upd)]);Object.assign(t,upd);}
-        for(const p of processos.filter(x=>x.assunto===nomeAntigo)){const upd={...p,assunto:nome};const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0)await sheetsUpdate(`processos!A${r}:T${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+        for(const p of processos.filter(x=>x.assunto===nomeAntigo)){const upd={...p,assunto:nome};const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0)await sheetsUpdate(`processos!A${r}:U${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
       }
       toast('✅ Assunto atualizado!');
     }
@@ -1962,6 +2023,7 @@ function verDetalhe(num){
     ${nv(p.vlr_proposta)>0?`<div style="background:var(--blue-ll);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--blue)">Proposta do Perito: <strong>${fmt(p.vlr_proposta)}</strong> / Confirmado: <strong>${fmt(hon)}</strong> / Diferença: <strong style="color:${nv(hon)-nv(p.vlr_proposta)<0?'var(--green)':'var(--red-l)'}">${fmt(Math.abs(nv(hon)-nv(p.vlr_proposta)))}</strong></div>`:''}
     ${[['Autor',p.autor],['Réu',p.reu],['Assunto',p.assunto],['Teses',p.teses||'—'],['Tribunal',p.tribunal],['Vara',p.vara],['Juiz',p.juiz],['Adv. Autor',p.adv_autor],['Adv. Réu',p.adv_reu],['Valor da Causa',fmt(p.vlr_causa)],['Gratuidade',isBool(p.gratuidade)?'Sim':'Não'],['Perito Assistente',p.perito_assistente||'—'],['Etapa Atual',p.etapa_atual],['Prazo',fmtD(p.data_limite_etapa_atual)],['Em Diligência',isBool(p.em_diligencia)?'Sim':'Não']].map(([k,v])=>`<div class="detail-row"><span class="detail-key">${k}:</span><span>${v||'—'}</span></div>`).join('')}
     ${p.teor_sentenca?`<div style="background:var(--surface,#f8fafc);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-top:10px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⚖ Teor da Sentença</div><div style="font-size:12px;white-space:pre-line">${p.teor_sentenca}</div></div>`:''}
+    ${p.etapa_atual==='Cancelado'?`<div style="background:var(--red-ll);border-radius:8px;padding:10px 12px;margin-top:10px"><div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">✕ Processo Cancelado</div><div style="font-size:12px;white-space:pre-line">${p.motivo_cancelamento||'Sem motivo informado'}</div></div>`:''}
     <div class="section-label">Histórico de Movimentações</div>
     ${hist.length?hist.map(m=>{
       const origIdx=movs.indexOf(m);
@@ -2017,11 +2079,11 @@ async function salvarProcesso(){
   }
   document.getElementById('f-num-aviso').style.display='none';
   const existente=modoProc==='editar'?processos.find(p=>p.num===num):null;
-  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:getTesesProc().join(', '),vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:document.getElementById('f-vlr-proposta').value,tribunal:document.getElementById('f-tribunal').value,teor_sentenca:document.getElementById('f-teor').value};
+  const obj={num,autor:document.getElementById('f-autor-proc').value,reu:document.getElementById('f-reu').value,assunto:document.getElementById('f-assunto').value,teses:getTesesProc().join(', '),vara:document.getElementById('f-vara-proc').value,juiz:document.getElementById('f-juiz').value,adv_autor:document.getElementById('f-adv-autor').value,adv_reu:document.getElementById('f-adv-reu').value,vlr_causa:document.getElementById('f-vlr-causa').value,gratuidade:boolStr(document.getElementById('f-gratuidade').checked),data_nomeacao:document.getElementById('f-data-nom').value,vlr_honorario:document.getElementById('f-vlr-hon').value,perito_assistente:document.getElementById('f-perito-ass').value,etapa_atual:modoProc==='novo'?'Apresentar Proposta de Honorários':(existente?.etapa_atual||'Apresentar Proposta de Honorários'),data_limite_etapa_atual:modoProc==='novo'?'':(existente?.data_limite_etapa_atual||''),em_diligencia:modoProc==='novo'?'FALSE':(existente?.em_diligencia||'FALSE'),vlr_proposta:document.getElementById('f-vlr-proposta').value,tribunal:document.getElementById('f-tribunal').value,teor_sentenca:document.getElementById('f-teor').value,motivo_cancelamento:existente?.motivo_cancelamento||''};
   const btn=document.getElementById('btn-salvar-proc');btn.disabled=true;btn.textContent='⏳ Salvando...';
   try{
-    if(modoProc==='novo'){await sheetsAppend('processos!A:T',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
-    else{const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,obj)]);const idx=processos.findIndex(p=>p.num===num);if(idx>=0)processos[idx]={...obj};toast('✅ Processo atualizado!');}
+    if(modoProc==='novo'){await sheetsAppend('processos!A:U',[objToRow(HDR_P,obj)]);processos.push(obj);toast('✅ Processo cadastrado!');}
+    else{const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn<0)throw new Error('Não encontrado.');await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,obj)]);const idx=processos.findIndex(p=>p.num===num);if(idx>=0)processos[idx]={...obj};toast('✅ Processo atualizado!');}
     fecharModal('modal-processo');renderTudo();
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Salvar';}
@@ -2041,7 +2103,7 @@ async function salvarMov(){
       const rn=await encontrarLinha('movimentacoes','id',movDil.id,HDR_M);if(rn<0)throw new Error('Movimentação não encontrada.');
       await sheetsUpdate(`movimentacoes!A${rn}:M${rn}`,[objToRow(HDR_M,upd)]);movs[editMovIdx]={...upd};
       const p=processos.find(x=>x.num===num);
-      if(p){let novaDataLim=p.data_limite_etapa_atual;if(p.data_limite_etapa_atual&&dias>0)novaDataLim=addDiasUteis(p.data_limite_etapa_atual,dias)||p.data_limite_etapa_atual;const updP={...p,em_diligencia:'FALSE',data_limite_etapa_atual:novaDataLim};const rnP=await encontrarLinha('processos','num',num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:T${rnP}`,[objToRow(HDR_P,updP)]);Object.assign(p,updP);}
+      if(p){let novaDataLim=p.data_limite_etapa_atual;if(p.data_limite_etapa_atual&&dias>0)novaDataLim=addDiasUteis(p.data_limite_etapa_atual,dias)||p.data_limite_etapa_atual;const updP={...p,em_diligencia:'FALSE',data_limite_etapa_atual:novaDataLim};const rnP=await encontrarLinha('processos','num',num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:U${rnP}`,[objToRow(HDR_P,updP)]);Object.assign(p,updP);}
       toast('✅ Diligência encerrada!');fecharModal('modal-mov');renderTudo();return;
     }
     // MOVIMENTAÇÃO NORMAL
@@ -2059,22 +2121,22 @@ async function salvarMov(){
         let novasTeses=p.teses||'';if(etapaNova==='Laudo Pericial Apresentado'){const t=getTesesSelecionadas();if(t.length)novasTeses=t.join(', ');}
         const novaDataLim=temPrazo?obj.data_limite:'';
         const upd={...p,etapa_atual:etapaNova,data_limite_etapa_atual:novaDataLim,teses:novasTeses};
-        const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+        const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
       }
     }
     // Atualiza teses na edição de laudo
     if(modoMov==='editar'&&etapaNova==='Laudo Pericial Apresentado'){
-      const p=processos.find(x=>x.num===num);if(p){const t=getTesesSelecionadas();const upd={...p,teses:t.join(', ')};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+      const p=processos.find(x=>x.num===num);if(p){const t=getTesesSelecionadas();const upd={...p,teses:t.join(', ')};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
     }
     // Valor proposta
     if(etapaNova==='Proposta de Honorários Apresentada'){
       const vlrProposta=document.getElementById('m-vlr-proposta').value;
-      if(vlrProposta){const p=processos.find(x=>x.num===num);if(p){const upd={...p,vlr_proposta:vlrProposta};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      if(vlrProposta){const p=processos.find(x=>x.num===num);if(p){const upd={...p,vlr_proposta:vlrProposta};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
     }
     // Teor da sentença
     if(etapaNova==='Sentença Proferida'){
       const teor=document.getElementById('m-teor').value;
-      const p=processos.find(x=>x.num===num);if(p){const upd={...p,teor_sentenca:teor};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+      const p=processos.find(x=>x.num===num);if(p){const upd={...p,teor_sentenca:teor};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
     }
     await verificarEncerramento(num);
     toast(modoMov==='novo'?'✅ Movimentação registrada!':'✅ Movimentação atualizada!');
@@ -2086,7 +2148,7 @@ async function salvarMov(){
 async function verificarEncerramento(num){
   const p=processos.find(x=>x.num===num);if(!p)return;if(p.etapa_atual!=='Sentença Proferida')return;
   const rec=alvaras.filter(a=>a.num_processo===num).reduce((s,a)=>s+nv(a.vlr_recebido),0);const hon=nv(p.vlr_honorario);
-  if(rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
+  if(rec>=hon){const upd={...p,etapa_atual:'Encerrado'};const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('🎉 Processo encerrado!');}
 }
 
 async function reverterParaEtapaAnterior(num){
@@ -2095,7 +2157,7 @@ async function reverterParaEtapaAnterior(num){
   const novaEtapa=movEtapas.length>0?movEtapas[0].etapa_nova:'Apresentar Proposta de Honorários';
   const novoPrazo=movEtapas.length>0?movEtapas[0].data_limite||'':'';
   const upd={...p,etapa_atual:novaEtapa,data_limite_etapa_atual:novoPrazo};
-  const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:T${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
+  const rn=await encontrarLinha('processos','num',num,HDR_P);if(rn>0)await sheetsUpdate(`processos!A${rn}:U${rn}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);
 }
 
 // ─── SALVAR ALVARÁ ────────────────────────────────────────────────────────────
@@ -2146,10 +2208,10 @@ function confirmarExcluirMov(idx){
       if(m.tipo==='Mudança de Etapa')await reverterParaEtapaAnterior(m.num_processo);
       if(m.tipo==='Diligência'){
         const p=processos.find(x=>x.num===m.num_processo);
-        if(p){const upd={...p,em_diligencia:'FALSE'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:T${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+        if(p){const upd={...p,em_diligencia:'FALSE'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:U${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
       }
       const p=processos.find(x=>x.num===m.num_processo);
-      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:T${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:U${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
       renderTudo();toast('✅ Movimentação excluída!');
     }catch(e){toast('❌ '+e.message,'error');}
   });
@@ -2162,7 +2224,7 @@ function confirmarExcluirAlvara(idx){
       const rn=await encontrarLinha('alvaras','id',a.id,HDR_A);if(rn<0)throw new Error('Não encontrado.');
       await deletarLinha('alvaras',rn);alvaras.splice(idx,1);
       const p=processos.find(x=>x.num===a.num_processo);
-      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(x=>x.num_processo===p.num).reduce((s,x)=>s+nv(x.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:T${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('⚠ Processo reaberto: saldo pendente.');}}
+      if(p&&p.etapa_atual==='Encerrado'){const rec=alvaras.filter(x=>x.num_processo===p.num).reduce((s,x)=>s+nv(x.vlr_recebido),0);if(rec<nv(p.vlr_honorario)){const upd={...p,etapa_atual:'Sentença Proferida'};const rnP=await encontrarLinha('processos','num',p.num,HDR_P);if(rnP>0)await sheetsUpdate(`processos!A${rnP}:U${rnP}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);toast('⚠ Processo reaberto: saldo pendente.');}}
       renderTudo();toast('✅ Alvará excluído!');
     }catch(e){toast('❌ '+e.message,'error');}
   });
