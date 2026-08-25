@@ -335,6 +335,15 @@ tbody tr:nth-child(even){background:#fafafa}
           <div class="ms-dropdown" id="ms-f-vara" data-label="Todas as varas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-vara')"><span class="ms-text">Todas as varas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-f-etapa" data-label="Todas as etapas"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-etapa')"><span class="ms-text">Todas as etapas</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <div class="ms-dropdown" id="ms-f-prazo" data-label="Todos os prazos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-prazo')"><span class="ms-text">Todos os prazos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-tribunal" data-label="Todos os tribunais"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-tribunal')"><span class="ms-text">Todos os tribunais</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-assunto" data-label="Todos os assuntos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-assunto')"><span class="ms-text">Todos os assuntos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-juiz" data-label="Todos os juízes"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-juiz')"><span class="ms-text">Todos os juízes</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-perito" data-label="Todos os peritos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-perito')"><span class="ms-text">Todos os peritos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-reu" data-label="Todos os réus"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-reu')"><span class="ms-text">Todos os réus</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-adva" data-label="Adv. Autor: todos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-adva')"><span class="ms-text">Adv. Autor: todos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-advr" data-label="Adv. Réu: todos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-advr')"><span class="ms-text">Adv. Réu: todos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-grat" data-label="Gratuidade: todos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-grat')"><span class="ms-text">Gratuidade: todos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
+          <div class="ms-dropdown" id="ms-f-dil" data-label="Diligência: todos"><button type="button" class="ms-btn" onclick="msToggle(event,'ms-f-dil')"><span class="ms-text">Diligência: todos</span><span class="ms-caret">▾</span></button><div class="ms-panel"></div></div>
           <span class="sort-label">Ordenar:</span>
           <select class="filter-select" id="sort-proc-campo" onchange="renderProcessos()">
             <option value="">Padrão (Prazo ↑)</option>
@@ -1206,6 +1215,7 @@ function renderDashboard(){
 const msSel={};
 const MS_RENDER={
   'ms-f-autor':()=>renderProcessos(),'ms-f-vara':()=>renderProcessos(),'ms-f-etapa':()=>renderProcessos(),'ms-f-prazo':()=>renderProcessos(),
+  'ms-f-tribunal':()=>renderProcessos(),'ms-f-assunto':()=>renderProcessos(),'ms-f-juiz':()=>renderProcessos(),'ms-f-perito':()=>renderProcessos(),'ms-f-reu':()=>renderProcessos(),'ms-f-adva':()=>renderProcessos(),'ms-f-advr':()=>renderProcessos(),'ms-f-grat':()=>renderProcessos(),'ms-f-dil':()=>renderProcessos(),
   'ms-fm-processo':()=>renderMovimentacoes(),'ms-fm-autor':()=>renderMovimentacoes(),'ms-fm-vara':()=>renderMovimentacoes(),'ms-fm-tipo':()=>renderMovimentacoes(),
   'ms-fa-processo':()=>renderAlvaras(),'ms-fa-autor':()=>renderAlvaras(),'ms-fa-vara':()=>renderAlvaras(),'ms-fa-transf':()=>renderAlvaras()
 };
@@ -1310,12 +1320,22 @@ function renderProcessos(){
   const fVara=msGet('ms-f-vara');
   const fEtapa=msGet('ms-f-etapa');
   const fPrazo=msGet('ms-f-prazo');
+  const fTribunal=msGet('ms-f-tribunal'),fAssunto=msGet('ms-f-assunto'),fJuiz=msGet('ms-f-juiz'),fPerito=msGet('ms-f-perito'),fReu=msGet('ms-f-reu'),fAdvA=msGet('ms-f-adva'),fAdvR=msGet('ms-f-advr'),fGrat=msGet('ms-f-grat'),fDil=msGet('ms-f-dil');
   let fil=base.filter(p=>{
     if(busca&&![p.num,p.autor,p.reu,p.assunto].join(' ').toLowerCase().includes(busca))return false;
     if(fAutor.length&&!fAutor.includes(p.autor))return false;
     if(fVara.length&&!fVara.includes(p.vara))return false;
     if(fEtapa.length&&!fEtapa.includes(p.etapa_atual))return false;
     if(fPrazo.length){const st=statusPrazo(p.data_limite_etapa_atual);const ok=fPrazo.some(tk=>tk==='com_prazo'?!!p.data_limite_etapa_atual:tk===st);if(!ok)return false;}
+    if(fTribunal.length&&!fTribunal.includes(p.tribunal))return false;
+    if(fAssunto.length&&!fAssunto.includes(p.assunto))return false;
+    if(fJuiz.length&&!fJuiz.includes(p.juiz))return false;
+    if(fPerito.length&&!fPerito.includes(p.perito_assistente))return false;
+    if(fReu.length&&!fReu.includes(p.reu))return false;
+    if(fAdvA.length&&!fAdvA.includes(p.adv_autor))return false;
+    if(fAdvR.length&&!fAdvR.includes(p.adv_reu))return false;
+    if(fGrat.length&&!fGrat.includes(isBool(p.gratuidade)?'sim':'nao'))return false;
+    if(fDil.length&&!fDil.includes(isBool(p.em_diligencia)?'sim':'nao'))return false;
     return true;
   });
   const ord=aplicarOrdenacao(fil,p=>p,'sort-proc-campo','sort-proc-dir');
@@ -1672,6 +1692,11 @@ function popularFiltros(){
   const nums=[...new Set(base.map(p=>p.num).filter(Boolean))].sort();
   msPopular('ms-f-autor',autores);msPopular('ms-f-vara',varas);msPopular('ms-f-etapa',[...ETAPAS,'Cancelado']);
   msPopular('ms-f-prazo',[{value:'com_prazo',label:'Com prazo'},{value:'urgente',label:'⚠ Urgente'},{value:'vencido',label:'🔴 Vencido'}]);
+  const distinct=campo=>[...new Set(base.map(p=>p[campo]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'pt-BR'));
+  msPopular('ms-f-tribunal',distinct('tribunal'));msPopular('ms-f-assunto',distinct('assunto'));msPopular('ms-f-juiz',distinct('juiz'));
+  msPopular('ms-f-perito',distinct('perito_assistente'));msPopular('ms-f-reu',distinct('reu'));msPopular('ms-f-adva',distinct('adv_autor'));msPopular('ms-f-advr',distinct('adv_reu'));
+  msPopular('ms-f-grat',[{value:'sim',label:'Sim'},{value:'nao',label:'Não'}]);
+  msPopular('ms-f-dil',[{value:'sim',label:'Em diligência'},{value:'nao',label:'Sem diligência'}]);
   msPopular('ms-fm-processo',nums);msPopular('ms-fm-autor',autores);msPopular('ms-fm-vara',varas);msPopular('ms-fm-tipo',['Mudança de Etapa','Observação Simples','Diligência']);
   msPopular('ms-fa-processo',nums);msPopular('ms-fa-autor',autores);msPopular('ms-fa-vara',varas);
   msPopular('ms-fa-transf',[{value:'sim',label:'✓ Transferido'},{value:'pendente',label:'Pendente'}]);
@@ -1681,7 +1706,7 @@ function popularFiltros(){
   const optsProc='<option value="">Selecione...</option>'+base.map(p=>`<option value="${p.num}">${p.num} — ${p.autor}</option>`).join('');
   document.getElementById('m-processo').innerHTML=optsProc;document.getElementById('a-processo').innerHTML=optsProc;
 }
-function limparFiltros(){const b=document.getElementById('f-busca');if(b)b.value='';['ms-f-autor','ms-f-vara','ms-f-etapa','ms-f-prazo'].forEach(msClear);renderProcessos();}
+function limparFiltros(){const b=document.getElementById('f-busca');if(b)b.value='';['ms-f-autor','ms-f-vara','ms-f-etapa','ms-f-prazo','ms-f-tribunal','ms-f-assunto','ms-f-juiz','ms-f-perito','ms-f-reu','ms-f-adva','ms-f-advr','ms-f-grat','ms-f-dil'].forEach(msClear);renderProcessos();}
 function limparFiltrosMov(){['ms-fm-processo','ms-fm-autor','ms-fm-vara','ms-fm-tipo'].forEach(msClear);['fm-data-de','fm-data-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderMovimentacoes();}
 function limparFiltrosAlv(){['ms-fa-processo','ms-fa-autor','ms-fa-vara','ms-fa-transf'].forEach(msClear);renderAlvaras();}
 
