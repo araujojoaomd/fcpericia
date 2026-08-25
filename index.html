@@ -1155,9 +1155,10 @@ function renderDashboard(){
   const urgentes=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='urgente').length;
   const vencidos=procs.filter(p=>statusPrazo(p.data_limite_etapa_atual)==='vencido').length;
   const emDil=procs.filter(p=>isBool(p.em_diligencia)).length;
-  const alvP=alvaras.filter(a=>procs.some(p=>p.num===a.num_processo));
+  const procsFin=procs.filter(p=>p.etapa_atual!=='Cancelado'); // cancelados nao entram nas contas financeiras
+  const alvP=alvaras.filter(a=>procsFin.some(p=>p.num===a.num_processo));
   const totalRec=alvP.reduce((s,a)=>s+nv(a.vlr_recebido),0);
-  const totalDir=procs.reduce((s,p)=>s+calcDireito(p.vlr_honorario,p.etapa_atual),0);
+  const totalDir=procsFin.reduce((s,p)=>s+calcDireito(p.vlr_honorario,p.etapa_atual),0);
   const saldo=Math.max(0,totalDir-totalRec);
   const totalPA=alvP.filter(a=>!isBool(a.transferido_pa)).reduce((s,a)=>{const imp=nv(a.perc_imposto)||6;const rep=nv(a.perc_repasse_pa)||50;return s+nv(a.vlr_recebido)*(1-imp/100)*(rep/100);},0);
   const af=f=>'stat-card clickable'+(dashFiltro===f?' active':'');
@@ -1167,7 +1168,7 @@ function renderDashboard(){
     <div class="${af('vencido')} red" onclick="setDashFiltro('vencido')"><div class="stat-label">🔴 Vencidos</div><div class="stat-value">${vencidos}</div></div>
     <div class="${af('diligencia')} orange" onclick="setDashFiltro('diligencia')"><div class="stat-label">🔄 Em Diligência</div><div class="stat-value">${emDil}</div></div>`;
   document.getElementById('stats-fin').innerHTML=`
-    <div class="${af('hon')} green" onclick="setDashFiltro('hon')"><div class="stat-label">Honorários Confirmados</div><div class="stat-value" style="font-size:15px">${fmt(procs.reduce((s,p)=>s+nv(p.vlr_honorario),0))}</div></div>
+    <div class="${af('hon')} green" onclick="setDashFiltro('hon')"><div class="stat-label">Honorários Confirmados</div><div class="stat-value" style="font-size:15px">${fmt(procsFin.reduce((s,p)=>s+nv(p.vlr_honorario),0))}</div></div>
     <div class="${af('direito')} blue" onclick="setDashFiltro('direito')"><div class="stat-label">Com Direito de Recebimento</div><div class="stat-value" style="font-size:15px">${fmt(totalDir)}</div></div>
     <div class="${af('recebido')} purple" onclick="setDashFiltro('recebido')"><div class="stat-label">Recebido</div><div class="stat-value" style="font-size:15px">${fmt(totalRec)}</div></div>
     <div class="${af('saldo')} red" onclick="setDashFiltro('saldo')"><div class="stat-label">Saldo a Receber</div><div class="stat-value" style="font-size:15px">${fmt(saldo)}</div></div>
@@ -1178,7 +1179,7 @@ function renderDashboard(){
   const FINANCEIRO=new Set(['hon','direito','recebido','saldo','transferir']);
   let atv;
   if(FINANCEIRO.has(dashFiltro)){
-    atv=procs.filter(p=>{
+    atv=procs.filter(p=>p.etapa_atual!=='Cancelado').filter(p=>{
       const dir=calcDireito(p.vlr_honorario,p.etapa_atual),rec=recDe(p);
       if(dashFiltro==='hon')return nv(p.vlr_honorario)>0;
       if(dashFiltro==='direito')return dir>0;
