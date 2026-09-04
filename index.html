@@ -270,6 +270,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
     <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
+    <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Configurações</button>
@@ -392,6 +393,29 @@ tbody tr:nth-child(even){background:#fafafa}
           <table><thead><tr><th>Data</th><th>Processo</th><th>Autor</th><th>Tipo</th><th>Etapa / Observação</th><th>Prazo</th><th>Limite</th><th>Ações</th></tr></thead>
           <tbody id="tbl-movs"></tbody></table>
         </div>
+      </div>
+
+      <div id="tab-tjse" class="tab-content" style="display:none">
+        <div class="topbar">
+          <div><div class="page-title">Andamento TJSE</div><p class="page-sub" id="tjse-sub" style="margin:2px 0 0">Espelho das movimentações do tribunal (somente leitura)</p></div>
+        </div>
+        <div class="filters">
+          <span class="sort-label">Período:</span>
+          <select class="filter-select" id="tjse-periodo" onchange="tjseSetPeriodo(this.value)">
+            <option value="7">Últimos 7 dias</option>
+            <option value="15" selected>Últimos 15 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="0">Tudo</option>
+          </select>
+          <select class="filter-select" id="tjse-filtro" onchange="tjseSetFiltro(this.value)">
+            <option value="todos">Todos</option>
+            <option value="perito">Só perito</option>
+            <option value="alvara">Só alvará</option>
+          </select>
+          <span id="tjse-lastcons" style="margin-left:auto;font-size:11px;color:var(--faint)"></span>
+        </div>
+        <div class="stats" id="tjse-stats"></div>
+        <div id="tjse-feed"></div>
       </div>
 
       <div id="tab-alvaras" class="tab-content" style="display:none">
@@ -713,6 +737,8 @@ const CLIENT_ID='1080539379296-6slkhm3vgtcp6g7pgk9plqk918ulbnr3.apps.googleuserc
 const SHEET_ID='1uvApK9wCctjAWGOgH62xA16Gd2aUsCanWFjVIPSWNPw';
 // ⬇️ COLE AQUI o ID da pasta-mae de anexos no Drive (o trecho da URL apos /folders/)
 const DRIVE_ANEXOS_FOLDER_ID='1u2TwlJnZ2BSseOv07DGAAaDwNvJkNPgO';
+// Planilha do Monitor TJSE (somente leitura) — abas "Processos" e "Movimentacoes"
+const TJSE_SHEET_ID='1kOiDQxItEmDCskabHUYWkzxX6L90t678QTzGGDIGy5g';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -729,6 +755,7 @@ const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclare
 const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
 
 let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[];
+let tjseProcessos=[],tjseMovs=[],tjseErro='',tjsePeriodo=15,tjseFiltro='todos';
 let modoProc='novo';
 let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
 let modoAlv='novo',editAlvIdx=-1;
@@ -848,7 +875,7 @@ function fazerLogin(){
   });
 }
 
-function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];listaAssuntos=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
+function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];listaAssuntos=[];tjseProcessos=[];tjseMovs=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
 
 function handleApiError(status){
   if(status===401){
@@ -870,6 +897,19 @@ async function sheetsGet(range){
   const r=await fetch(`${BASE_URL}/values/${encodeURIComponent(range)}`,{headers:{Authorization:`Bearer ${accessToken}`}});
   if(!r.ok)handleApiError(r.status);
   return(await r.json()).values||[];
+}
+// Lê uma aba de OUTRA planilha (ex.: Monitor TJSE), mapeando pela linha de cabeçalho (tolerante ao schema)
+async function lerAbaDe(sheetId,aba){
+  const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(aba+'!A1:Z')}`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)throw new Error('Erro '+r.status);
+  const rows=(await r.json()).values||[];
+  if(rows.length<2)return [];
+  const hdr=rows[0].map(h=>String(h||'').trim());
+  return rows.slice(1).filter(x=>x.some(c=>c!=='')).map(x=>{const o={};hdr.forEach((k,i)=>o[k]=x[i]??'');return o;});
+}
+async function carregarTJSE(){
+  try{tjseProcessos=await lerAbaDe(TJSE_SHEET_ID,'Processos');tjseMovs=await lerAbaDe(TJSE_SHEET_ID,'Movimentacoes');tjseErro='';}
+  catch(e){tjseProcessos=[];tjseMovs=[];tjseErro=e.message;console.warn('TJSE:',e.message);}
 }
 async function sheetsAppend(range,values){
   const r=await fetch(`${BASE_URL}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values})});
@@ -921,7 +961,7 @@ async function carregarDados(){
     movs=await lerAba('movimentacoes',HDR_M);showSpinner('💰 Lendo honorários...');
     alvaras=await lerAba('alvaras',HDR_A);showSpinner('⚙ Lendo configurações...');
     teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);showSpinner('✓ Lendo tarefas...');
-    await carregarAssuntos();await carregarTarefas();
+    await carregarAssuntos();await carregarTarefas();showSpinner('⚖ Lendo andamento do TJSE...');await carregarTJSE();
     hideSpinner();renderTudo();toast(`✅ ${processos.length} processo(s) carregado(s)!`);
   }catch(e){hideSpinner();toast('❌ '+e.message,'error');}
   finally{document.getElementById('btnReload').disabled=false;}
@@ -930,7 +970,47 @@ async function carregarDados(){
 function aplicarFiltroGlobal(){perfilAtual=document.getElementById('perfilSelect').value;renderTudo();}
 function processosFiltradosPorPerfil(){return perfilAtual?processos.filter(p=>p.perito_assistente===perfilAtual):processos;}
 function switchTab(tab){document.querySelectorAll('.tab-content').forEach(el=>el.style.display='none');document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));document.getElementById('tab-'+tab).style.display='block';document.querySelector(`[data-tab="${tab}"]`).classList.add('active');}
-function renderTudo(){renderDashboard();renderTarefas();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();}
+function renderTudo(){renderDashboard();renderTarefas();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();renderAndamentoTJSE();}
+// ─── ANDAMENTO TJSE (leitura do Monitor) ──────────────────────────────────────
+function tjseParseData(s){
+  s=String(s||'').trim();if(!s)return 0;
+  let m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]).getTime();
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]).getTime();
+  const t=Date.parse(s);return isNaN(t)?0:t;
+}
+function tjseMovPerito(m){return /^(s|sim|true|1)/i.test(String(m.Envolve_Perito||'').trim());}
+function tjseMovAlvara(m){return /alvar/i.test(String(m.Tipo_Movimento||'')+' '+String(m.Descricao||''));}
+function tjseSetPeriodo(v){tjsePeriodo=parseInt(v)||0;renderAndamentoTJSE();}
+function tjseSetFiltro(v){tjseFiltro=v;renderAndamentoTJSE();}
+function renderAndamentoTJSE(){
+  const feed=document.getElementById('tjse-feed');if(!feed)return;
+  const stats=document.getElementById('tjse-stats'),lc=document.getElementById('tjse-lastcons');
+  if(tjseErro){feed.innerHTML=`<div style="text-align:center;padding:36px;color:var(--faint)">Não foi possível ler o Monitor TJSE.<br><span style="font-size:11px">Verifique se a planilha do Monitor foi compartilhada com você. (${tjseErro})</span></div>`;stats.innerHTML='';lc.textContent='';return;}
+  const cons=tjseProcessos.map(p=>tjseParseData(p.Data_Consulta)).filter(Boolean);
+  lc.textContent='🕑 Última consulta ao TJSE: '+(cons.length?new Date(Math.max(...cons)).toLocaleDateString('pt-BR'):'—');
+  const numSet=perfilAtual?new Set(processosFiltradosPorPerfil().map(p=>p.num)):null;
+  const cutoff=tjsePeriodo?Date.now()-tjsePeriodo*86400000:0;
+  const noPeriodo=m=>{if(numSet&&!numSet.has(m.Numero_Processo))return false;const t=tjseParseData(m.Data_Movimento);return !cutoff||(t&&t>=cutoff);};
+  const base=tjseMovs.filter(noPeriodo);
+  stats.innerHTML=`
+    <div class="stat-card blue"><div class="stat-label">Movimentações</div><div class="stat-value">${base.length}</div></div>
+    <div class="stat-card yellow"><div class="stat-label">💰 Com alvará</div><div class="stat-value">${base.filter(tjseMovAlvara).length}</div></div>
+    <div class="stat-card purple"><div class="stat-label">👤 Do perito</div><div class="stat-value">${base.filter(tjseMovPerito).length}</div></div>`;
+  let lista=base.filter(m=>{if(tjseFiltro==='perito'&&!tjseMovPerito(m))return false;if(tjseFiltro==='alvara'&&!tjseMovAlvara(m))return false;return true;})
+    .sort((a,b)=>tjseParseData(b.Data_Movimento)-tjseParseData(a.Data_Movimento));
+  if(!lista.length){feed.innerHTML=tjseMovs.length?'<div style="text-align:center;padding:36px;color:var(--faint)">Nenhuma movimentação do TJSE no período/filtro.</div>':'<div style="text-align:center;padding:36px;color:var(--faint)">Sem movimentações do TJSE carregadas.</div>';return;}
+  const autorDe=n=>{const p=processos.find(x=>x.num===n);return p?p.autor:'';};
+  feed.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Processo</th><th>Tipo / Descrição</th><th>Marcadores</th></tr></thead><tbody>'+
+    lista.map(m=>{
+      const per=tjseMovPerito(m),alv=tjseMovAlvara(m),aut=autorDe(m.Numero_Processo),noFC=processos.some(x=>x.num===m.Numero_Processo);
+      return`<tr style="${alv?'background:#fdf3d7':''}">
+        <td style="color:var(--muted);white-space:nowrap">${fmtD(m.Data_Movimento)}</td>
+        <td ${per?'style="box-shadow:inset 3px 0 0 var(--purple)"':''}><span class="mono" ${noFC?`onclick="verDetalhe('${m.Numero_Processo}')" style="color:var(--blue);text-decoration:underline;cursor:pointer" title="Ver detalhes"`:''}>${m.Numero_Processo}</span>${aut?`<div style="font-size:10px;color:var(--muted)">${aut}</div>`:''}</td>
+        <td><div style="font-weight:600;font-size:11px">${m.Tipo_Movimento||'—'}</div>${m.Descricao?`<div style="color:var(--muted);font-size:11px">${m.Descricao}</div>`:''}</td>
+        <td style="white-space:nowrap">${alv?'<span class="badge badge-yellow">💰 Alvará</span> ':''}${per?'<span class="badge badge-purple">Perito</span>':''}</td>
+      </tr>`;
+    }).join('')+'</tbody></table></div>';
+}
 // ─── TAREFAS PENDENTES ────────────────────────────────────────────────────────
 function renderTarefas(){
   const cont=document.getElementById('tarefas-lista');if(!cont)return;
