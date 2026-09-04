@@ -755,7 +755,7 @@ const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclare
 const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
 
 let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[];
-let tjseProcessos=[],tjseMovs=[],tjseErro='',tjsePeriodo=15,tjseFiltro='todos';
+let tjseProcessos=[],tjseMovs=[],tjseErro='',tjsePeriodo=15,tjseFiltro='todos',detProcNum='';
 let modoProc='novo';
 let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
 let modoAlv='novo',editAlvIdx=-1;
@@ -2169,8 +2169,34 @@ function verDetalhe(num){
         <div style="color:var(--muted);font-size:10px;margin-top:2px">Líquido: <b>${fmt(liq)}</b> (${imp}% imp.) • Repasse PA: <b>${fmt(pa)}</b> (${rep}%)</div>
         ${a.observacao?`<div style="color:var(--muted);font-size:11px;margin-top:2px">${a.observacao}</div>`:''}
       </div>`;
-    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhum recebimento registrado.</div>'}`;
+    }).join(''):'<div style="color:var(--faint);font-size:12px">Nenhum recebimento registrado.</div>'}
+    <div class="section-label" style="display:flex;align-items:center;gap:8px"><span style="background:#17356b;color:#fff;font-size:9px;padding:1px 7px;border-radius:20px;letter-spacing:.04em">TJSE</span> Movimentações no Tribunal</div>
+    <div style="margin-bottom:8px"><select class="filter-select" id="det-tjse-filtro" onchange="renderDetTJSE()" style="font-size:11px;padding:4px 8px"><option value="todos">Todos</option><option value="perito">Só perito</option><option value="alvara">Só alvará</option></select></div>
+    <div id="det-tjse-list"></div>`;
+  detProcNum=num;
   abrirModal('modal-detalhe');
+  renderDetTJSE();
+}
+function renderDetTJSE(){
+  const cont=document.getElementById('det-tjse-list');if(!cont)return;
+  if(tjseErro){cont.innerHTML='<div style="color:var(--faint);font-size:12px">Sem acesso ao Monitor TJSE.</div>';return;}
+  const f=(document.getElementById('det-tjse-filtro')||{value:'todos'}).value;
+  let lista=tjseMovs.filter(m=>String(m.Numero_Processo)===String(detProcNum));
+  if(f==='perito')lista=lista.filter(tjseMovPerito);else if(f==='alvara')lista=lista.filter(tjseMovAlvara);
+  lista.sort((a,b)=>tjseParseData(b.Data_Movimento)-tjseParseData(a.Data_Movimento));
+  if(!lista.length){cont.innerHTML='<div style="color:var(--faint);font-size:12px">Sem movimentações do TJSE para este processo.</div>';return;}
+  cont.innerHTML=lista.map(m=>{
+    const per=tjseMovPerito(m),alv=tjseMovAlvara(m);
+    return`<div class="hist-item" style="${alv?'background:#fdf3d7;':''}${per?'border-left:3px solid var(--purple)':''}">
+      <div class="hist-head">
+        <span style="color:var(--faint)">${fmtD(m.Data_Movimento)}</span>
+        <span style="font-weight:600;font-size:11px">${m.Tipo_Movimento||'—'}</span>
+        ${alv?'<span class="badge badge-yellow">💰 Alvará</span>':''}
+        ${per?'<span class="badge badge-purple">Perito</span>':''}
+      </div>
+      ${m.Descricao?`<div style="color:var(--muted);font-size:11px">${m.Descricao}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
 // ─── SALVAR PROCESSO ─────────────────────────────────────────────────────────
