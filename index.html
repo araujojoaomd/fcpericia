@@ -689,6 +689,22 @@ tbody tr:nth-child(even){background:#fafafa}
   </div>
 </div>
 
+<!-- MODAL GERAR PETIÇÃO -->
+<div class="modal-overlay" id="modal-peticao">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-head"><div class="modal-title">Gerar Petição de Pagamento</div><button class="modal-close" onclick="fecharModal('modal-peticao')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="pt-processo-display"></div></div>
+      <div class="form-field"><label class="field-label">Modelo *</label><select class="field-select" id="pt-modelo"><option value="">Carregando modelos…</option></select></div>
+      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">A petição é gerada em PDF e <b>salva na pasta de anexos do processo</b> no Drive (abre ao final). Os campos preenchidos automaticamente ficam <b style="background:#fff3b0;padding:0 3px">destacados em amarelo</b> para você revisar antes de protocolar.</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-peticao')">Cancelar</button>
+      <button class="modal-save btn-blue" id="btn-gerar-peticao" onclick="gerarPeticao()">📄 Gerar petição</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CANCELAR PROCESSO -->
 <div class="modal-overlay" id="modal-cancelar">
   <div class="modal-box" style="max-width:480px">
@@ -740,6 +756,9 @@ const SHEET_ID='1uvApK9wCctjAWGOgH62xA16Gd2aUsCanWFjVIPSWNPw';
 const DRIVE_ANEXOS_FOLDER_ID='1u2TwlJnZ2BSseOv07DGAAaDwNvJkNPgO';
 // Planilha do Monitor TJSE (somente leitura) — abas "Processos" e "Movimentacoes"
 const TJSE_SHEET_ID='1kOiDQxItEmDCskabHUYWkzxX6L90t678QTzGGDIGy5g';
+// Gerador de petições (Apps Script) + pasta dos modelos (Google Docs)
+const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1wAfgCiZ8tkwxC_EeCA0I1qOlaBh2XnM-Us9D3O5aVEo5esBLW0/exec';
+const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -757,6 +776,7 @@ const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esc
 
 let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[];
 let tjseProcessos=[],tjseMovs=[],tjseErro='',tjsePeriodo=15,tjseFiltro='todos',detProcNum='';
+let peticaoProcNum='',peticaoModelos=null;
 let modoProc='novo';
 let modoMov='novo',editMovIdx=-1,modoEncerrarDil=false,numProcDil='';
 let modoAlv='novo',editAlvIdx=-1;
@@ -1190,6 +1210,54 @@ async function abrirPastaProcesso(num){
   }catch(e){toast('❌ '+e.message,'error');}
 }
 
+// ─── GERAR PETIÇÃO (Apps Script + modelos Google Docs) ────────────────────────
+function estadoDeTribunal(trib){
+  const map={'TJSE':'SERGIPE','TJPE':'PERNAMBUCO'};
+  return map[String(trib||'').trim().toUpperCase()]||'';
+}
+function dataPorExtenso(){
+  const m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const d=new Date();return d.getDate()+' de '+m[d.getMonth()]+' de '+d.getFullYear();
+}
+async function peticaoPost(payload){
+  const r=await fetch(PETICAO_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(!d.ok)throw new Error(d.erro||'Falha no gerador de petições.');
+  return d;
+}
+async function abrirModalPeticao(num){
+  peticaoProcNum=num;const p=processos.find(x=>x.num===num);if(!p)return;
+  document.getElementById('pt-processo-display').textContent=`${num} — ${p.autor||''}`;
+  const sel=document.getElementById('pt-modelo');
+  abrirModal('modal-peticao');
+  try{
+    if(!peticaoModelos){const d=await peticaoPost({acao:'listar_modelos',modelos_folder_id:MODELOS_FOLDER_ID});peticaoModelos=d.modelos||[];}
+    sel.innerHTML=peticaoModelos.length?'<option value="">Selecione o modelo…</option>'+peticaoModelos.map(m=>`<option value="${m.id}">${m.nome}</option>`).join(''):'<option value="">Nenhum modelo na pasta</option>';
+  }catch(e){sel.innerHTML='<option value="">Erro ao listar modelos</option>';toast('❌ '+e.message,'error');}
+}
+async function gerarPeticao(){
+  const p=processos.find(x=>x.num===peticaoProcNum);if(!p)return;
+  const sel=document.getElementById('pt-modelo');const modeloId=sel.value;
+  if(!modeloId){toast('Selecione o modelo.','warn');return;}
+  const modeloNome=sel.options[sel.selectedIndex].text;
+  const dados={
+    numero_processo:p.num,autor:p.autor||'',reu:p.reu||'',vara:p.vara||'',
+    tribunal:p.tribunal||'',estado:estadoDeTribunal(p.tribunal),juiz:p.juiz||'',
+    data_extenso:dataPorExtenso()
+  };
+  const subpasta=nomeSubpasta(p);
+  const arquivo=_sane(`${modeloNome} - ${p.num} - ${iniciaisAutor(p.autor)}`);
+  const btn=document.getElementById('btn-gerar-peticao');btn.disabled=true;btn.textContent='⏳ Gerando…';
+  try{
+    const d=await peticaoPost({acao:'gerar_peticao',modelo_id:modeloId,anexos_parent_id:DRIVE_ANEXOS_FOLDER_ID,subpasta,arquivo,dados});
+    fecharModal('modal-peticao');
+    toast('✅ Petição gerada e salva nos anexos!');
+    if(d.link)window.open(d.link,'_blank');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='📄 Gerar petição';}
+}
+
 // ─── CANCELAMENTO DE PROCESSO ─────────────────────────────────────────────────
 let cancelarProcNum='';
 function cancelarProcesso(num){
@@ -1495,6 +1563,7 @@ function renderProcessos(){
         <button class="act-btn act-gray" onclick="abrirModalTarefa('${p.num}')">+ Tarefa</button>
         <button class="act-btn act-blue" onclick="abrirModalAnexo('${p.num}')">+ Anexo</button>
         <button class="act-btn act-gray" onclick="abrirPastaProcesso('${p.num}')">📎 Pasta</button>
+        <button class="act-btn act-purple" onclick="abrirModalPeticao('${p.num}')" style="background:var(--purple-l);color:var(--purple)">📄 Petição</button>
         ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
         ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
         ${!encerrado?`<button class="act-btn act-orange" onclick="cancelarProcesso('${p.num}')">✕ Cancelar</button>`:''}
