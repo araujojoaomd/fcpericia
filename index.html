@@ -696,7 +696,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <div class="form-grid">
       <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="pt-processo-display"></div></div>
       <div class="form-field"><label class="field-label">Modelo *</label><select class="field-select" id="pt-modelo"><option value="">Carregando modelos…</option></select></div>
-      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">A petição é gerada em PDF e <b>salva na pasta de anexos do processo</b> no Drive (abre ao final). Os campos preenchidos automaticamente ficam <b style="background:#fff3b0;padding:0 3px">destacados em amarelo</b> para você revisar antes de protocolar.</div></div>
+      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">A petição é gerada como <b>documento do Google Docs (editável)</b> e <b>salva na pasta de anexos do processo</b> no Drive (abre ao final). Os campos preenchidos automaticamente ficam <b style="background:#fff3b0;padding:0 3px">destacados em amarelo</b> para você revisar e ajustar antes de protocolar.</div></div>
     </div>
     <div class="modal-footer">
       <button class="modal-cancel" onclick="fecharModal('modal-peticao')">Cancelar</button>
@@ -1252,7 +1252,7 @@ async function gerarPeticao(){
   try{
     const d=await peticaoPost({acao:'gerar_peticao',modelo_id:modeloId,anexos_parent_id:DRIVE_ANEXOS_FOLDER_ID,subpasta,arquivo,dados});
     fecharModal('modal-peticao');
-    toast('✅ Petição gerada e salva nos anexos!');
+    toast('✅ Documento da petição gerado nos anexos!');
     if(d.link)window.open(d.link,'_blank');
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='📄 Gerar petição';}
