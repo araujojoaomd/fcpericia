@@ -162,6 +162,8 @@ tbody tr:nth-child(even){background:#fafafa}
 .rel-total{margin-top:6px;padding:12px 16px;background:var(--blue-ll);border-radius:10px;font-size:14px;font-weight:800;color:var(--blue);text-align:right}
 .rel-badge-ok{color:var(--green);font-weight:700}
 .rel-badge-pend{color:var(--orange);font-weight:700}
+.rel-btn{background:var(--purple-l);color:var(--purple);border:none;border-radius:6px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.rel-btn:hover{opacity:.85}
 /* TAREFAS MANUAIS */
 .tarefa-item{display:flex;align-items:flex-start;gap:10px;background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:6px}
 .tarefa-item.feita{opacity:.62;background:var(--gray2)}
@@ -1744,13 +1746,13 @@ function relVaras(filtroVara){
     const sub=g.reduce((s,d)=>s+d.saldo,0);totalGeral+=sub;
     const trib=(g.find(d=>d.p.tribunal)||{p:{}}).p.tribunal;
     html+=`<div class="rel-grupo"><div class="rel-grupo-head"><span style="color:var(--text);font-size:12px">${trib?'🏛 '+trib+' — ':''}⚖ ${vara}</span><span>${g.length} processo(s) • Saldo: ${fmt(sub)}</span></div>
-    <table class="rel-tbl"><thead><tr><th>Processo</th><th>Autor × Réu</th><th>Juiz</th><th>Etapa</th><th>Nomeação</th><th>Prazo</th><th class="num">Honorários</th><th class="num">Direito</th><th class="num">Recebido</th><th class="num">% Alv.</th><th class="num">Saldo a receber</th></tr></thead><tbody>`;
+    <table class="rel-tbl"><thead><tr><th>Processo</th><th>Autor × Réu</th><th>Juiz</th><th>Etapa</th><th>Nomeação</th><th>Prazo</th><th class="num">Honorários</th><th class="num">Direito</th><th class="num">Recebido</th><th class="num">% Alv.</th><th class="num">Saldo a receber</th><th class="no-print"></th></tr></thead><tbody>`;
     g.forEach(d=>{
       const p=d.p;const st=statusPrazo(p.data_limite_etapa_atual);
       const prazoTxt=p.data_limite_etapa_atual?`${fmtD(p.data_limite_etapa_atual)}${st==='vencido'?' ⚠':st==='urgente'?' •':''}`:'—';
-      html+=`<tr><td class="mono">${p.num}</td><td>${p.autor}<div style="color:var(--muted);font-size:10px">× ${p.reu||'—'}</div></td><td>${p.juiz||'—'}</td><td>${p.etapa_atual||'—'}</td><td>${fmtD(p.data_nomeacao)}</td><td>${prazoTxt}</td><td class="num">${fmt(p.vlr_honorario)}</td><td class="num">${fmt(d.dir)}</td><td class="num">${fmt(d.rec)}</td><td class="num">${d.pctAlv}%</td><td class="num" style="font-weight:700;color:var(--red)">${fmt(d.saldo)}</td></tr>`;
+      html+=`<tr><td class="mono">${p.num}</td><td>${p.autor}<div style="color:var(--muted);font-size:10px">× ${p.reu||'—'}</div></td><td>${p.juiz||'—'}</td><td>${p.etapa_atual||'—'}</td><td>${fmtD(p.data_nomeacao)}</td><td>${prazoTxt}</td><td class="num">${fmt(p.vlr_honorario)}</td><td class="num">${fmt(d.dir)}</td><td class="num">${fmt(d.rec)}</td><td class="num">${d.pctAlv}%</td><td class="num" style="font-weight:700;color:var(--red)">${fmt(d.saldo)}</td><td class="no-print"><button class="rel-btn" onclick="abrirModalPeticao('${p.num}')">📄 Petição</button></td></tr>`;
     });
-    html+=`</tbody><tfoot><tr><td colspan="10" class="num">Subtotal da vara</td><td class="num">${fmt(sub)}</td></tr></tfoot></table></div>`;
+    html+=`</tbody><tfoot><tr><td colspan="10" class="num">Subtotal da vara</td><td class="num">${fmt(sub)}</td><td class="no-print"></td></tr></tfoot></table></div>`;
   });
   html+=`<div class="rel-total">Total geral a receber: ${fmt(totalGeral)}</div>`;
   return html;
@@ -1840,7 +1842,8 @@ function imprimirRelatorio(){
     tfoot td{background:#f8fafc;font-weight:700;border-top:2px solid #cbd5e1}
     tr.aberto{background:#fff7ed}
     .rel-total{margin-top:6px;padding:12px 16px;background:#dbeafe;border-radius:8px;font-size:15px;font-weight:800;color:#1d4ed8;text-align:right}
-    .rel-badge-ok{color:#059669;font-weight:700}.rel-badge-pend{color:#ea580c;font-weight:700}`;
+    .rel-badge-ok{color:#059669;font-weight:700}.rel-badge-pend{color:#ea580c;font-weight:700}
+    .no-print{display:none !important}`;
   const w=window.open('','_blank');
   if(!w){toast('Permita pop-ups para imprimir o relatório.','warn');return;}
   w.document.write(`<html><head><meta charset="utf-8"><title>Relatório FC Perícia</title><style>${css}</style></head><body>${cont.innerHTML}</body></html>`);
