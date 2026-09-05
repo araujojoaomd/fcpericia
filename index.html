@@ -460,6 +460,7 @@ tbody tr:nth-child(even){background:#fafafa}
             <option value="geral_pa">Relatório Geral — Perito Assistente</option>
           </select>
           <select class="filter-select" id="rel-filtro" onchange="renderRelatorios()"></select>
+          <select class="filter-select" id="rel-etapa" onchange="renderRelatorios()" style="display:none"><option value="">Todas as etapas</option></select>
           <button class="primary-btn btn-blue" onclick="imprimirRelatorio()">🖨 Imprimir / PDF</button>
         </div>
         <div id="rel-conteudo"></div>
@@ -1628,8 +1629,17 @@ function popularRelFiltro(){
   else{items=[...new Set(base.map(p=>p.perito_assistente).filter(Boolean))].sort();label='Todos os peritos';}
   sel.innerHTML=`<option value="">${label}</option>`+items.map(v=>`<option value="${v}">${v}</option>`).join('');
   sel.value=val;
+  const selE=document.getElementById('rel-etapa');
+  if(selE){
+    selE.style.display=tipo==='varas'?'':'none';
+    const valE=selE.value;
+    const comSaldo=base.filter(p=>{const rec=alvaras.filter(a=>a.num_processo===p.num).reduce((s,a)=>s+nv(a.vlr_recebido),0);return Math.max(0,calcDireito(p.vlr_honorario,p.etapa_atual)-rec)>0;});
+    const etapas=[...new Set(comSaldo.map(p=>p.etapa_atual).filter(Boolean))].sort((a,b)=>ETAPAS.indexOf(a)-ETAPAS.indexOf(b));
+    selE.innerHTML='<option value="">Todas as etapas</option>'+etapas.map(e=>`<option value="${e}">${e}</option>`).join('');
+    selE.value=valE;
+  }
 }
-function onChangeRelTipo(){const sel=document.getElementById('rel-filtro');if(sel)sel.value='';popularRelFiltro();renderRelatorios();}
+function onChangeRelTipo(){const sel=document.getElementById('rel-filtro');if(sel)sel.value='';const selE=document.getElementById('rel-etapa');if(selE)selE.value='';popularRelFiltro();renderRelatorios();}
 function renderRelatorios(){
   const cont=document.getElementById('rel-conteudo');if(!cont)return;
   const tipo=(document.getElementById('rel-tipo')||{value:'varas'}).value;
@@ -1652,7 +1662,10 @@ function relVaras(filtroVara){
     return{p,rec,dir,saldo,pctAlv};
   }).filter(d=>d.saldo>0);
   if(filtroVara)dados=dados.filter(d=>d.p.vara===filtroVara);
+  const filtroEtapa=(document.getElementById('rel-etapa')||{value:''}).value;
+  if(filtroEtapa)dados=dados.filter(d=>d.p.etapa_atual===filtroEtapa);
   let html=relCabecalho('Cobrança às Varas — Valores a Receber');
+  if(filtroEtapa)html+=`<div style="font-size:12px;color:var(--muted);margin:-8px 0 12px">Filtrado por etapa: <b>${filtroEtapa}</b></div>`;
   if(!dados.length)return html+'<p style="color:var(--faint);padding:20px">Nenhum processo com saldo a receber.</p>';
   const grupos={};
   dados.forEach(d=>{const k=d.p.vara||'(Sem vara)';(grupos[k]=grupos[k]||[]).push(d);});
