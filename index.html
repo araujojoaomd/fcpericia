@@ -1750,7 +1750,7 @@ function relVaras(filtroVara){
     g.forEach(d=>{
       const p=d.p;const st=statusPrazo(p.data_limite_etapa_atual);
       const prazoTxt=p.data_limite_etapa_atual?`${fmtD(p.data_limite_etapa_atual)}${st==='vencido'?' ⚠':st==='urgente'?' •':''}`:'—';
-      html+=`<tr><td class="mono">${p.num}</td><td>${p.autor}<div style="color:var(--muted);font-size:10px">× ${p.reu||'—'}</div></td><td>${p.juiz||'—'}</td><td>${p.etapa_atual||'—'}</td><td>${fmtD(p.data_nomeacao)}</td><td>${prazoTxt}</td><td class="num">${fmt(p.vlr_honorario)}</td><td class="num">${fmt(d.dir)}</td><td class="num">${fmt(d.rec)}</td><td class="num">${d.pctAlv}%</td><td class="num" style="font-weight:700;color:var(--red)">${fmt(d.saldo)}</td><td class="no-print"><button class="rel-btn" onclick="abrirModalPeticao('${p.num}')">📄 Petição</button></td></tr>`;
+      html+=`<tr><td class="mono">${p.num}</td><td>${p.autor}<div style="color:var(--muted);font-size:10px">× ${p.reu||'—'}</div></td><td>${p.juiz||'—'}</td><td>${p.etapa_atual||'—'}</td><td>${fmtD(p.data_nomeacao)}</td><td>${prazoTxt}</td><td class="num">${fmt(p.vlr_honorario)}</td><td class="num">${fmt(d.dir)}</td><td class="num">${fmt(d.rec)}</td><td class="num">${d.pctAlv}%</td><td class="num" style="font-weight:700;color:var(--red)">${fmt(d.saldo)}</td><td class="no-print"><button class="rel-btn" onclick="abrirModalPeticao('${p.num}')">📄 Cobrar</button></td></tr>`;
     });
     html+=`</tbody><tfoot><tr><td colspan="10" class="num">Subtotal da vara</td><td class="num">${fmt(sub)}</td><td class="no-print"></td></tr></tfoot></table></div>`;
   });
