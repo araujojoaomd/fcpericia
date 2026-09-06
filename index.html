@@ -669,6 +669,42 @@ tbody tr:nth-child(even){background:#fafafa}
   </div>
 </div>
 
+<!-- MODAL VARA -->
+<div class="modal-overlay" id="modal-vara">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><div class="modal-title" id="modal-vara-title">Nova Vara</div><button class="modal-close" onclick="fecharModal('modal-vara')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Nome da Vara *</label><input class="field-input" id="vr-nome" placeholder="Ex.: 6ª Vara Cível de Aracaju"></div>
+      <div class="form-field half"><label class="field-label">Tribunal</label><input class="field-input" id="vr-tribunal" list="dl-tribunais2" placeholder="Ex.: TJSE"><datalist id="dl-tribunais2"></datalist></div>
+      <div class="form-field half"><label class="field-label">Comarca</label><input class="field-input" id="vr-comarca" placeholder="Ex.: Aracaju"></div>
+      <div class="form-field"><label class="field-label">Estado</label><input class="field-input" id="vr-estado" placeholder="Ex.: Sergipe"><div style="font-size:10px;color:var(--faint);margin-top:3px">Entra no endereçamento da petição (“…Estado de Sergipe”).</div></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="vr-ativo" checked> Ativo</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-vara')">Cancelar</button>
+      <button class="modal-save btn-blue" id="btn-salvar-vara" onclick="salvarVara()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL JUIZ -->
+<div class="modal-overlay" id="modal-juiz">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><div class="modal-title" id="modal-juiz-title">Novo Juiz</div><button class="modal-close" onclick="fecharModal('modal-juiz')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-field"><label class="field-label">Vara *</label><select class="field-select" id="jz-vara"><option value="">Selecione…</option></select></div>
+      <div class="form-field"><label class="field-label">Nome do Juiz *</label><input class="field-input" id="jz-nome"></div>
+      <div class="form-field half"><label class="field-label">Gênero *</label><select class="field-select" id="jz-genero"><option value="">Selecione…</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select><div style="font-size:10px;color:var(--faint);margin-top:3px">Define o tratamento (Juiz/Juíza) na petição.</div></div>
+      <div class="form-field half"><label class="check-label" style="padding-top:20px"><input type="checkbox" id="jz-titular"> Juiz(a) titular</label></div>
+      <div class="form-field"><label class="check-label"><input type="checkbox" id="jz-ativo" checked> Ativo</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-juiz')">Cancelar</button>
+      <button class="modal-save btn-purple" id="btn-salvar-juiz" onclick="salvarJuiz()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TAREFA -->
 <div class="modal-overlay" id="modal-tarefa">
   <div class="modal-box" style="max-width:480px">
@@ -795,12 +831,15 @@ const HDR_T=["id","assunto","tese","ativo"];
 const HDR_PE=["id","nome","email","ativo"];
 const HDR_TAREFAS=["id","num_processo","descricao","prazo","feita","data_conclusao","data_criacao","responsavel"];
 const HDR_ASSUNTOS=["id","nome","ativo"];
+const HDR_VARAS=["id","nome","tribunal","comarca","estado","ativo"];
+const HDR_JUIZES=["id","vara","nome","genero","titular","ativo"];
 const ETAPAS=["Apresentar Proposta de Honorários","Proposta de Honorários Apresentada","Apresentar Defesa da Proposta","Defesa da Proposta Apresentada","Apresentar Laudo Pericial","Laudo Pericial Apresentado","Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado","Sentença Proferida","Encerrado"];
 const ETAPAS_COM_PRAZO=new Set(["Apresentar Proposta de Honorários","Apresentar Defesa da Proposta","Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_DILIGENCIA=new Set(["Apresentar Laudo Pericial","Apresentar Esclarecimentos Complementares"]);
 const ETAPAS_REPETIVEL=new Set(["Apresentar Esclarecimentos Complementares","Esclarecimentos Complementares Apresentado"]);
 
-let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[];
+let accessToken=null,processos=[],movs=[],alvaras=[],teses=[],peritos=[],tarefasManuais=[],listaAssuntos=[],listaVaras=[],listaJuizes=[];
+let modoVara='novo',editVaraIdx=-1,modoJuiz='novo',editJuizIdx=-1;
 let tjseProcessos=[],tjseMovs=[],tjseErro='',tjsePeriodo=15,tjseFiltro='todos',detProcNum='';
 let peticaoProcNum='',peticaoModelos=null;
 let modoProc='novo';
@@ -922,7 +961,7 @@ function fazerLogin(){
   });
 }
 
-function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];listaAssuntos=[];tjseProcessos=[];tjseMovs=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
+function fazerLogout(){accessToken=null;processos=[];movs=[];alvaras=[];teses=[];peritos=[];tarefasManuais=[];listaAssuntos=[];listaVaras=[];listaJuizes=[];tjseProcessos=[];tjseMovs=[];document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('session-banner').style.display='none';}
 
 function handleApiError(status){
   if(status===401){
@@ -999,6 +1038,30 @@ async function carregarAssuntos(){
   try{await garantirAbaAssuntos();listaAssuntos=await lerAba('assuntos',HDR_ASSUNTOS);}
   catch(e){listaAssuntos=[];console.warn('Assuntos:',e.message);}
 }
+// Cria abas 'varas' e 'juizes' (se nao existirem) e migra a partir dos processos
+async function garantirAbasVarasJuizes(){
+  const r=await fetch(`${BASE_URL}?fields=sheets.properties.title`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  const tits=(await r.json()).sheets.map(s=>s.properties.title);
+  if(!tits.includes('varas')){
+    await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'varas'}}}]})});
+    await sheetsUpdate('varas!A1:F1',[HDR_VARAS]);
+    const tribDe={};processos.forEach(p=>{if(p.vara&&!tribDe[p.vara])tribDe[p.vara]=p.tribunal||'';});
+    const nomes=[...new Set(processos.map(p=>p.vara).filter(Boolean))].sort();
+    if(nomes.length)await sheetsAppend('varas!A:F',nomes.map(n=>objToRow(HDR_VARAS,{id:uid(),nome:n,tribunal:tribDe[n]||'',comarca:'',estado:'',ativo:'TRUE'})));
+  }
+  if(!tits.includes('juizes')){
+    await fetch(`${BASE_URL}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'juizes'}}}]})});
+    await sheetsUpdate('juizes!A1:F1',[HDR_JUIZES]);
+    const vistos=new Set(),novos=[];
+    processos.forEach(p=>{const v=(p.vara||'').trim(),n=(p.juiz||'').trim();if(v&&n){const k=v+'|'+n;if(!vistos.has(k)){vistos.add(k);novos.push(objToRow(HDR_JUIZES,{id:uid(),vara:v,nome:n,genero:'',titular:'FALSE',ativo:'TRUE'}));}}});
+    if(novos.length)await sheetsAppend('juizes!A:F',novos);
+  }
+}
+async function carregarVarasJuizes(){
+  try{await garantirAbasVarasJuizes();listaVaras=await lerAba('varas',HDR_VARAS);listaJuizes=await lerAba('juizes',HDR_JUIZES);}
+  catch(e){listaVaras=[];listaJuizes=[];console.warn('Varas/Juizes:',e.message);}
+}
 async function encontrarLinha(aba,campo,valor,hdrs){const all=await sheetsGet(`${aba}!A1:Z`);const col=hdrs.indexOf(campo);for(let i=1;i<all.length;i++){if((all[i][col]||'')===String(valor))return i+1;}return -1;}
 
 async function carregarDados(){
@@ -1008,7 +1071,7 @@ async function carregarDados(){
     movs=await lerAba('movimentacoes',HDR_M);showSpinner('💰 Lendo honorários...');
     alvaras=await lerAba('alvaras',HDR_A);showSpinner('⚙ Lendo configurações...');
     teses=await lerAba('assuntos_teses',HDR_T);peritos=await lerAba('peritos',HDR_PE);showSpinner('✓ Lendo tarefas...');
-    await carregarAssuntos();await carregarTarefas();showSpinner('⚖ Lendo andamento do TJSE...');await carregarTJSE();
+    await carregarAssuntos();await carregarVarasJuizes();await carregarTarefas();showSpinner('⚖ Lendo andamento do TJSE...');await carregarTJSE();
     hideSpinner();renderTudo();toast(`✅ ${processos.length} processo(s) carregado(s)!`);
   }catch(e){hideSpinner();toast('❌ '+e.message,'error');}
   finally{document.getElementById('btnReload').disabled=false;}
@@ -1718,6 +1781,10 @@ function renderConfig(){
   const ta=document.getElementById('tbl-assuntos');
   if(ta)ta.innerHTML=listaAssuntos.length?listaAssuntos.map((a,i)=>{const nT=teses.filter(t=>t.assunto===a.nome).length;return`<tr><td><span class="badge badge-purple">${a.nome}</span></td><td style="color:var(--muted)">${nT} tese(s)</td><td>${isBool(a.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalAssunto('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirAssunto(${i})">Excluir</button></td></tr>`;}).join(''):'<tr class="empty-row"><td colspan="4">Nenhum assunto cadastrado.</td></tr>';
   document.getElementById('tbl-config').innerHTML=teses.length?teses.map((t,i)=>`<tr><td><span class="badge badge-purple">${t.assunto}</span></td><td>${t.tese||'—'}</td><td>${isBool(t.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalTese('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirTese(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhuma tese cadastrada.</td></tr>';
+  const tv=document.getElementById('tbl-varas');
+  if(tv)tv.innerHTML=listaVaras.length?listaVaras.map((v,i)=>{const nJ=listaJuizes.filter(j=>j.vara===v.nome).length;return`<tr><td style="font-weight:600">${v.nome}</td><td>${v.tribunal?`<span class="badge badge-blue">${v.tribunal}</span>`:'—'}</td><td>${v.comarca||'—'}</td><td>${v.estado||'<span style="color:var(--red)">—</span>'}</td><td style="color:var(--muted)">${nJ} juiz(es)</td><td>${isBool(v.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalVara('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirVara(${i})">Excluir</button></td></tr>`;}).join(''):'<tr class="empty-row"><td colspan="7">Nenhuma vara cadastrada.</td></tr>';
+  const tj=document.getElementById('tbl-juizes');
+  if(tj)tj.innerHTML=listaJuizes.length?listaJuizes.map((j,i)=>{const g=String(j.genero||'').toLowerCase();const gBadge=g.startsWith('f')?'<span class="badge" style="background:#fce7f3;color:#be185d">Feminino</span>':g.startsWith('m')?'<span class="badge badge-blue">Masculino</span>':'<span class="badge badge-yellow">definir</span>';return`<tr><td style="font-weight:600">${j.nome}</td><td><span class="badge badge-purple">${j.vara}</span></td><td>${gBadge}</td><td>${isBool(j.titular)?'<span class="badge badge-green">✓ Titular</span>':'<span class="badge badge-gray">Substituto</span>'}</td><td>${isBool(j.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalJuiz('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirJuiz(${i})">Excluir</button></td></tr>`;}).join(''):'<tr class="empty-row"><td colspan="6">Nenhum juiz cadastrado.</td></tr>';
 }
 
 // ─── RELATÓRIOS ───────────────────────────────────────────────────────────────
@@ -2217,6 +2284,91 @@ function confirmarExcluirAssunto(idx){
       const rn=await encontrarLinha('assuntos','id',a.id,HDR_ASSUNTOS);if(rn<0)throw new Error('Não encontrado.');
       await deletarLinha('assuntos',rn);listaAssuntos.splice(idx,1);renderTudo();toast('✅ Assunto excluído!');
     }catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+// ─── VARAS (CRUD) ─────────────────────────────────────────────────────────────
+function popularSelectVaras(selId,valor){
+  const sel=document.getElementById(selId);if(!sel)return;
+  const nomes=listaVaras.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR')).map(v=>v.nome);
+  const lista=valor&&!nomes.includes(valor)?[valor,...nomes]:nomes;
+  sel.innerHTML='<option value="">Selecione…</option>'+lista.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.value=valor||'';
+}
+function abrirModalVara(modo,idx){
+  modoVara=modo;editVaraIdx=idx??-1;
+  document.getElementById('modal-vara-title').textContent=modo==='novo'?'Nova Vara':'Editar Vara';
+  document.getElementById('dl-tribunais2').innerHTML=[...new Set(listaVaras.map(v=>v.tribunal).filter(Boolean))].sort().map(t=>`<option value="${t}">`).join('');
+  if(modo==='novo'){['vr-nome','vr-tribunal','vr-comarca','vr-estado'].forEach(id=>document.getElementById(id).value='');document.getElementById('vr-ativo').checked=true;}
+  else{const v=listaVaras[idx];document.getElementById('vr-nome').value=v.nome||'';document.getElementById('vr-tribunal').value=v.tribunal||'';document.getElementById('vr-comarca').value=v.comarca||'';document.getElementById('vr-estado').value=v.estado||'';document.getElementById('vr-ativo').checked=isBool(v.ativo);}
+  abrirModal('modal-vara');
+}
+async function salvarVara(){
+  const nome=document.getElementById('vr-nome').value.trim();
+  if(!nome){toast('Informe o nome da vara.','warn');return;}
+  if(listaVaras.find((v,i)=>v.nome.toLowerCase()===nome.toLowerCase()&&i!==editVaraIdx)){toast('Já existe uma vara com esse nome.','warn');return;}
+  const nomeAntigo=modoVara==='editar'?listaVaras[editVaraIdx].nome:'';
+  const obj={id:modoVara==='editar'?listaVaras[editVaraIdx].id:uid(),nome,tribunal:document.getElementById('vr-tribunal').value.trim(),comarca:document.getElementById('vr-comarca').value.trim(),estado:document.getElementById('vr-estado').value.trim(),ativo:boolStr(document.getElementById('vr-ativo').checked)};
+  const btn=document.getElementById('btn-salvar-vara');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    if(modoVara==='novo'){await sheetsAppend('varas!A:F',[objToRow(HDR_VARAS,obj)]);listaVaras.push(obj);toast('✅ Vara cadastrada!');}
+    else{
+      const rn=await encontrarLinha('varas','id',obj.id,HDR_VARAS);if(rn<0)throw new Error('Não encontrado.');
+      await sheetsUpdate(`varas!A${rn}:F${rn}`,[objToRow(HDR_VARAS,obj)]);listaVaras[editVaraIdx]={...obj};
+      if(nomeAntigo&&nomeAntigo!==nome){
+        for(const p of processos.filter(x=>x.vara===nomeAntigo)){const upd={...p,vara:nome};const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0)await sheetsUpdate(`processos!A${r}:U${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}
+        for(const j of listaJuizes.filter(x=>x.vara===nomeAntigo)){const upd={...j,vara:nome};const r=await encontrarLinha('juizes','id',j.id,HDR_JUIZES);if(r>0)await sheetsUpdate(`juizes!A${r}:F${r}`,[objToRow(HDR_JUIZES,upd)]);Object.assign(j,upd);}
+      }
+      toast('✅ Vara atualizada!');
+    }
+    fecharModal('modal-vara');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+function confirmarExcluirVara(idx){
+  const v=listaVaras[idx];
+  const nP=processos.filter(p=>p.vara===v.nome).length,nJ=listaJuizes.filter(j=>j.vara===v.nome).length;
+  if(nP>0){toast(`Não dá para excluir: ${nP} processo(s) usam a vara "${v.nome}".`,'warn');return;}
+  if(nJ>0){toast(`Não dá para excluir: a vara "${v.nome}" tem ${nJ} juiz(es). Remova os juízes primeiro.`,'warn');return;}
+  abrirConfirm(`Excluir a vara "${v.nome}"?`,async()=>{
+    try{const rn=await encontrarLinha('varas','id',v.id,HDR_VARAS);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('varas',rn);listaVaras.splice(idx,1);renderTudo();toast('✅ Vara excluída!');}
+    catch(e){toast('❌ '+e.message,'error');}
+  });
+}
+// ─── JUÍZES (CRUD) ────────────────────────────────────────────────────────────
+function abrirModalJuiz(modo,idx){
+  modoJuiz=modo;editJuizIdx=idx??-1;
+  document.getElementById('modal-juiz-title').textContent=modo==='novo'?'Novo Juiz':'Editar Juiz';
+  if(modo==='novo'){popularSelectVaras('jz-vara','');document.getElementById('jz-nome').value='';document.getElementById('jz-genero').value='';document.getElementById('jz-titular').checked=false;document.getElementById('jz-ativo').checked=true;}
+  else{const j=listaJuizes[idx];popularSelectVaras('jz-vara',j.vara);document.getElementById('jz-nome').value=j.nome||'';document.getElementById('jz-genero').value=(String(j.genero||'').toLowerCase().startsWith('f')?'Feminino':String(j.genero||'').toLowerCase().startsWith('m')?'Masculino':'');document.getElementById('jz-titular').checked=isBool(j.titular);document.getElementById('jz-ativo').checked=isBool(j.ativo);}
+  abrirModal('modal-juiz');
+}
+async function salvarJuiz(){
+  const vara=document.getElementById('jz-vara').value,nome=document.getElementById('jz-nome').value.trim(),genero=document.getElementById('jz-genero').value;
+  if(!vara){toast('Selecione a vara.','warn');return;}
+  if(!nome){toast('Informe o nome do juiz.','warn');return;}
+  if(!genero){toast('Selecione o gênero (define o tratamento).','warn');return;}
+  const nomeAntigo=modoJuiz==='editar'?listaJuizes[editJuizIdx].nome:'';
+  const obj={id:modoJuiz==='editar'?listaJuizes[editJuizIdx].id:uid(),vara,nome,genero,titular:boolStr(document.getElementById('jz-titular').checked),ativo:boolStr(document.getElementById('jz-ativo').checked)};
+  const btn=document.getElementById('btn-salvar-juiz');btn.disabled=true;btn.textContent='⏳ Salvando...';
+  try{
+    if(modoJuiz==='novo'){await sheetsAppend('juizes!A:F',[objToRow(HDR_JUIZES,obj)]);listaJuizes.push(obj);toast('✅ Juiz cadastrado!');}
+    else{
+      const rn=await encontrarLinha('juizes','id',obj.id,HDR_JUIZES);if(rn<0)throw new Error('Não encontrado.');
+      await sheetsUpdate(`juizes!A${rn}:F${rn}`,[objToRow(HDR_JUIZES,obj)]);listaJuizes[editJuizIdx]={...obj};
+      if(nomeAntigo&&nomeAntigo!==nome){for(const p of processos.filter(x=>x.juiz===nomeAntigo)){const upd={...p,juiz:nome};const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0)await sheetsUpdate(`processos!A${r}:U${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);}}
+      toast('✅ Juiz atualizado!');
+    }
+    fecharModal('modal-juiz');renderTudo();
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+function confirmarExcluirJuiz(idx){
+  const j=listaJuizes[idx];
+  const nP=processos.filter(p=>p.juiz===j.nome).length;
+  if(nP>0){toast(`Não dá para excluir: ${nP} processo(s) usam o juiz "${j.nome}".`,'warn');return;}
+  abrirConfirm(`Excluir o juiz "${j.nome}"?`,async()=>{
+    try{const rn=await encontrarLinha('juizes','id',j.id,HDR_JUIZES);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('juizes',rn);listaJuizes.splice(idx,1);renderTudo();toast('✅ Juiz excluído!');}
+    catch(e){toast('❌ '+e.message,'error');}
   });
 }
 
