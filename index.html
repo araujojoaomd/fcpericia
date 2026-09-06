@@ -275,7 +275,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
-    <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Configurações</button>
+    <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Tabelas de Cadastro</button>
     <div class="sidebar-footer">
       <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
       <button class="btn-logout" onclick="fazerLogout()">Sair da conta</button>
@@ -469,7 +469,7 @@ tbody tr:nth-child(even){background:#fafafa}
       </div>
 
       <div id="tab-config" class="tab-content" style="display:none">
-        <div class="page-title">Configurações</div>
+        <div class="page-title">Tabelas de Cadastro</div>
         <p class="page-sub">Gerenciar peritos, assuntos e teses</p>
         <div class="topbar"><div style="font-size:13px;font-weight:700">Peritos Assistentes</div><button class="primary-btn btn-blue" onclick="abrirModalPerito('novo')">+ Novo Perito</button></div>
         <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-peritos"></tbody></table></div>
