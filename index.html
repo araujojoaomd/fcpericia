@@ -694,15 +694,15 @@ tbody tr:nth-child(even){background:#fafafa}
 <!-- MODAL GERAR PETIÇÃO -->
 <div class="modal-overlay" id="modal-peticao">
   <div class="modal-box" style="max-width:500px">
-    <div class="modal-head"><div class="modal-title">Gerar Petição de Pagamento</div><button class="modal-close" onclick="fecharModal('modal-peticao')">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Gerar Documento</div><button class="modal-close" onclick="fecharModal('modal-peticao')">✕</button></div>
     <div class="form-grid">
       <div class="form-field"><label class="field-label">Processo</label><div class="field-readonly" id="pt-processo-display"></div></div>
       <div class="form-field"><label class="field-label">Modelo *</label><select class="field-select" id="pt-modelo"><option value="">Carregando modelos…</option></select></div>
-      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">A petição é gerada como <b>documento do Google Docs (editável)</b> e <b>salva na pasta de anexos do processo</b> no Drive (abre ao final). Os campos preenchidos automaticamente ficam <b style="background:#fff3b0;padding:0 3px">destacados em amarelo</b> para você revisar e ajustar antes de protocolar.</div></div>
+      <div class="form-field"><div style="font-size:10px;color:var(--muted);line-height:1.6">O documento é gerado como <b>Google Docs (editável)</b> e <b>salvo na pasta de anexos do processo</b> no Drive (abre ao final). Os campos preenchidos automaticamente ficam <b style="background:#fff3b0;padding:0 3px">destacados em amarelo</b> para você revisar e ajustar antes de usar.</div></div>
     </div>
     <div class="modal-footer">
       <button class="modal-cancel" onclick="fecharModal('modal-peticao')">Cancelar</button>
-      <button class="modal-save btn-blue" id="btn-gerar-peticao" onclick="gerarPeticao()">📄 Gerar petição</button>
+      <button class="modal-save btn-blue" id="btn-gerar-peticao" onclick="gerarPeticao()">📄 Gerar documento</button>
     </div>
   </div>
 </div>
@@ -1254,10 +1254,10 @@ async function gerarPeticao(){
   try{
     const d=await peticaoPost({acao:'gerar_peticao',modelo_id:modeloId,anexos_parent_id:DRIVE_ANEXOS_FOLDER_ID,subpasta,arquivo,dados});
     fecharModal('modal-peticao');
-    toast('✅ Documento da petição gerado nos anexos!');
+    toast('✅ Documento gerado nos anexos!');
     if(d.link)window.open(d.link,'_blank');
   }catch(e){toast('❌ '+e.message,'error');}
-  finally{btn.disabled=false;btn.textContent='📄 Gerar petição';}
+  finally{btn.disabled=false;btn.textContent='📄 Gerar documento';}
 }
 
 // ─── CANCELAMENTO DE PROCESSO ─────────────────────────────────────────────────
@@ -1565,7 +1565,7 @@ function renderProcessos(){
         <button class="act-btn act-gray" onclick="abrirModalTarefa('${p.num}')">+ Tarefa</button>
         <button class="act-btn act-blue" onclick="abrirModalAnexo('${p.num}')">+ Anexo</button>
         <button class="act-btn act-gray" onclick="abrirPastaProcesso('${p.num}')">📎 Pasta</button>
-        <button class="act-btn act-purple" onclick="abrirModalPeticao('${p.num}')" style="background:var(--purple-l);color:var(--purple)">📄 Petição</button>
+        <button class="act-btn act-purple" onclick="abrirModalPeticao('${p.num}')" style="background:var(--purple-l);color:var(--purple)">📄 Gerar Documentos</button>
         ${!dilAtiva&&!encerrado&&ETAPAS_DILIGENCIA.has(p.etapa_atual)?`<button class="act-btn act-orange" onclick="abrirIniciarDiligencia('${p.num}')">🔄 Iniciar Diligência</button>`:''}
         ${dilAtiva?`<button class="act-btn act-orange" onclick="encerrarDiligencia('${p.num}')">✓ Encerrar Diligência</button>`:''}
         ${!encerrado?`<button class="act-btn act-orange" onclick="cancelarProcesso('${p.num}')">✕ Cancelar</button>`:''}
