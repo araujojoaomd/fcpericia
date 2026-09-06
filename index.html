@@ -519,8 +519,8 @@ tbody tr:nth-child(even){background:#fafafa}
       <div class="form-field"><label class="field-label">Autor</label><input class="field-input" id="f-autor-proc"></div>
       <div class="form-field"><label class="field-label">Réu</label><input class="field-input" id="f-reu"></div>
       <div class="form-field half"><label class="field-label">Tribunal</label><input class="field-input" id="f-tribunal" list="dl-tribunais" placeholder="Ex.: TJPE, TRF5..."><datalist id="dl-tribunais"></datalist></div>
-      <div class="form-field half"><label class="field-label">Vara</label><input class="field-input" id="f-vara-proc" list="dl-varas" oninput="onChangeVaraProc()"><datalist id="dl-varas"></datalist></div>
-      <div class="form-field"><label class="field-label">Juiz</label><input class="field-input" id="f-juiz"></div>
+      <div class="form-field half"><label class="field-label">Vara</label><select class="field-select" id="f-vara-proc" onchange="onChangeVaraProc()"><option value="">Selecione…</option></select></div>
+      <div class="form-field"><label class="field-label">Juiz</label><select class="field-select" id="f-juiz" onchange="onChangeJuizProc()"><option value="">Selecione…</option></select></div>
       <div class="form-field"><label class="field-label">Adv. Autor</label><input class="field-input" id="f-adv-autor"></div>
       <div class="form-field"><label class="field-label">Adv. Réu</label><input class="field-input" id="f-adv-reu"></div>
       <div class="form-field half"><label class="field-label">Valor da Causa (R$)</label><input class="field-input" id="f-vlr-causa" type="number" step="0.01"></div>
@@ -1304,6 +1304,15 @@ function estadoDeTribunal(trib){
   const map={'TJSE':'SERGIPE','TJPE':'PERNAMBUCO'};
   return map[String(trib||'').trim().toUpperCase()]||'';
 }
+// Monta o enderecamento da peticao a partir da vara (nome/estado) + genero do juiz
+function montarEnderecamento(p){
+  const v=listaVaras.find(x=>x.nome===p.vara);
+  const estado=(v&&v.estado)||estadoDeTribunal(p.tribunal);
+  const j=listaJuizes.find(x=>x.nome===p.juiz&&x.vara===p.vara);
+  const fem=j&&/^f/i.test(String(j.genero||''));
+  const trat=fem?'Excelentíssima Senhora Doutora Juíza':'Excelentíssimo Senhor Doutor Juiz';
+  return `${trat} de Direito da ${p.vara||''}, Estado de ${estado||''}`;
+}
 function dataPorExtenso(){
   const m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   const d=new Date();return d.getDate()+' de '+m[d.getMonth()]+' de '+d.getFullYear();
@@ -1330,9 +1339,11 @@ async function gerarPeticao(){
   const sel=document.getElementById('pt-modelo');const modeloId=sel.value;
   if(!modeloId){toast('Selecione o modelo.','warn');return;}
   const modeloNome=sel.options[sel.selectedIndex].text;
+  const v=listaVaras.find(x=>x.nome===p.vara);
   const dados={
     numero_processo:p.num,autor:p.autor||'',reu:p.reu||'',vara:p.vara||'',
-    tribunal:p.tribunal||'',estado:estadoDeTribunal(p.tribunal),juiz:p.juiz||'',
+    tribunal:p.tribunal||'',estado:(v&&v.estado)||estadoDeTribunal(p.tribunal),juiz:p.juiz||'',
+    enderecamento:montarEnderecamento(p),
     data_extenso:dataPorExtenso()
   };
   const subpasta=nomeSubpasta(p);
@@ -2005,11 +2016,10 @@ function abrirModalProcesso(modo,num){
   const assuntos=[...new Set([...listaAssuntos.map(a=>a.nome),...processos.map(p=>p.assunto)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const selA=document.getElementById('f-assunto');selA.innerHTML=assuntos.map(a=>`<option value="${a}">${a}</option>`).join('')||'<option value="">Sem assuntos</option>';
   const tribunais=[...new Set(processos.map(p=>p.tribunal).filter(Boolean))].sort();
-  const varasEx=[...new Set(processos.map(p=>p.vara).filter(Boolean))].sort();
   document.getElementById('dl-tribunais').innerHTML=tribunais.map(t=>`<option value="${t}">`).join('');
-  document.getElementById('dl-varas').innerHTML=varasEx.map(v=>`<option value="${v}">`).join('');
   if(modo==='novo'){
-    ['f-num','f-autor-proc','f-reu','f-vara-proc','f-juiz','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon','f-tribunal'].forEach(id=>document.getElementById(id).value='');
+    ['f-num','f-autor-proc','f-reu','f-adv-autor','f-adv-reu','f-vlr-causa','f-vlr-hon','f-tribunal'].forEach(id=>document.getElementById(id).value='');
+    popularVaraProcesso('');popularJuizProcesso('','');
     document.getElementById('f-perito-ass').value='';document.getElementById('f-data-nom').value='';document.getElementById('f-gratuidade').checked=false;
     document.getElementById('f-vlr-proposta').value='';carregarTesesProc(selA.value,[]);
     document.getElementById('f-teor').value='';
@@ -2017,7 +2027,7 @@ function abrirModalProcesso(modo,num){
   }else{
     const p=processos.find(x=>x.num===num);if(!p)return;
     document.getElementById('f-num').value=p.num;document.getElementById('f-autor-proc').value=p.autor;document.getElementById('f-reu').value=p.reu;
-    selA.value=p.assunto||'';document.getElementById('f-vara-proc').value=p.vara;document.getElementById('f-juiz').value=p.juiz;
+    selA.value=p.assunto||'';popularVaraProcesso(p.vara);popularJuizProcesso(p.vara,p.juiz);
     document.getElementById('f-adv-autor').value=p.adv_autor;document.getElementById('f-adv-reu').value=p.adv_reu;
     document.getElementById('f-vlr-causa').value=String(p.vlr_causa).replace(',','.');document.getElementById('f-vlr-hon').value=String(p.vlr_honorario).replace(',','.');
     document.getElementById('f-data-nom').value=p.data_nomeacao||'';document.getElementById('f-gratuidade').checked=isBool(p.gratuidade);
@@ -2030,11 +2040,31 @@ function abrirModalProcesso(modo,num){
   abrirModal('modal-processo');
 }
 // Auto-preenche o Tribunal a partir de uma vara já cadastrada (varas vinculadas a um tribunal)
+let aposSalvarVara=null,aposSalvarJuiz=null;
+function popularVaraProcesso(valor){
+  const sel=document.getElementById('f-vara-proc');if(!sel)return;
+  const nomes=listaVaras.filter(v=>isBool(v.ativo)).map(v=>v.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const lista=valor&&!nomes.includes(valor)?[valor,...nomes]:nomes;
+  sel.innerHTML='<option value="">Selecione…</option>'+lista.map(n=>`<option value="${n}">${n}</option>`).join('')+'<option value="__nova__">➕ Cadastrar nova vara…</option>';
+  sel.value=valor||'';
+}
+function popularJuizProcesso(vara,valor){
+  const sel=document.getElementById('f-juiz');if(!sel)return;
+  const nomes=listaJuizes.filter(j=>j.vara===vara&&isBool(j.ativo)).map(j=>j.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const lista=valor&&!nomes.includes(valor)?[valor,...nomes]:nomes;
+  sel.innerHTML='<option value="">Selecione…</option>'+lista.map(n=>`<option value="${n}">${n}</option>`).join('')+(vara?'<option value="__novo__">➕ Cadastrar novo juiz…</option>':'');
+  sel.value=valor||'';
+}
 function onChangeVaraProc(){
-  const vara=document.getElementById('f-vara-proc').value.trim();
-  const tEl=document.getElementById('f-tribunal');if(!vara||tEl.value.trim())return;
-  const ref=processos.find(p=>p.vara===vara&&p.tribunal);
-  if(ref)tEl.value=ref.tribunal;
+  const sel=document.getElementById('f-vara-proc');
+  if(sel.value==='__nova__'){sel.value='';aposSalvarVara=(nome)=>{popularVaraProcesso(nome);onChangeVaraProc();};abrirModalVara('novo');return;}
+  const v=listaVaras.find(x=>x.nome===sel.value);
+  if(v&&v.tribunal)document.getElementById('f-tribunal').value=v.tribunal;
+  popularJuizProcesso(sel.value,'');
+}
+function onChangeJuizProc(){
+  const sel=document.getElementById('f-juiz');
+  if(sel.value==='__novo__'){sel.value='';const vara=document.getElementById('f-vara-proc').value;aposSalvarJuiz=(nome)=>{popularJuizProcesso(vara,nome);};abrirModalJuiz('novo');document.getElementById('jz-vara').value=vara;}
 }
 
 // MOVIMENTAÇÃO
@@ -2321,6 +2351,7 @@ async function salvarVara(){
       toast('✅ Vara atualizada!');
     }
     fecharModal('modal-vara');renderTudo();
+    if(aposSalvarVara){aposSalvarVara(obj.nome);aposSalvarVara=null;}
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Salvar';}
 }
@@ -2359,6 +2390,7 @@ async function salvarJuiz(){
       toast('✅ Juiz atualizado!');
     }
     fecharModal('modal-juiz');renderTudo();
+    if(aposSalvarJuiz){aposSalvarJuiz(obj.nome);aposSalvarJuiz=null;}
   }catch(e){toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='💾 Salvar';}
 }
