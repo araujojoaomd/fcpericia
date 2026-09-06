@@ -131,6 +131,10 @@ tbody tr:nth-child(even){background:#fafafa}
 .filter-select{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;outline:none;cursor:pointer}
 .btn-clear-filters{background:none;border:1.5px solid var(--gray3);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
 .sort-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
+.subtabs{display:flex;gap:2px;border-bottom:1.5px solid var(--gray3);margin:16px 0 20px;flex-wrap:wrap}
+.subtab{background:none;border:none;border-bottom:2px solid transparent;padding:9px 15px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;margin-bottom:-1.5px}
+.subtab:hover{color:var(--blue)}
+.subtab.on{color:var(--blue);border-bottom-color:var(--blue)}
 .ms-dropdown{position:relative;display:inline-block}
 .ms-btn{padding:7px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;color:var(--text);background:var(--gray);font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:150px;justify-content:space-between}
 .ms-btn:hover{border-color:var(--blue-l)}
@@ -470,13 +474,33 @@ tbody tr:nth-child(even){background:#fafafa}
 
       <div id="tab-config" class="tab-content" style="display:none">
         <div class="page-title">Tabelas de Cadastro</div>
-        <p class="page-sub">Gerenciar peritos, assuntos e teses</p>
-        <div class="topbar"><div style="font-size:13px;font-weight:700">Peritos Assistentes</div><button class="primary-btn btn-blue" onclick="abrirModalPerito('novo')">+ Novo Perito</button></div>
-        <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-peritos"></tbody></table></div>
-        <div class="topbar"><div style="font-size:13px;font-weight:700">Assuntos</div><button class="primary-btn btn-purple" onclick="abrirModalAssunto('novo')">+ Novo Assunto</button></div>
-        <div class="tbl-wrap" style="margin-bottom:24px"><table><thead><tr><th>Assunto</th><th>Teses</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-assuntos"></tbody></table></div>
-        <div class="topbar"><div style="font-size:13px;font-weight:700">Teses</div><button class="primary-btn btn-purple" onclick="abrirModalTese('novo')">+ Nova Tese</button></div>
-        <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
+        <div class="subtabs">
+          <button class="subtab on" data-cfg="peritos" onclick="cfgTab('peritos')">Peritos</button>
+          <button class="subtab" data-cfg="assuntos" onclick="cfgTab('assuntos')">Assuntos</button>
+          <button class="subtab" data-cfg="teses" onclick="cfgTab('teses')">Teses</button>
+          <button class="subtab" data-cfg="varas" onclick="cfgTab('varas')">Varas</button>
+          <button class="subtab" data-cfg="juizes" onclick="cfgTab('juizes')">Juízes</button>
+        </div>
+        <div id="cfg-peritos" class="cfg-panel">
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Peritos Assistentes</div><button class="primary-btn btn-blue" onclick="abrirModalPerito('novo')">+ Novo Perito</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-peritos"></tbody></table></div>
+        </div>
+        <div id="cfg-assuntos" class="cfg-panel" style="display:none">
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Assuntos</div><button class="primary-btn btn-purple" onclick="abrirModalAssunto('novo')">+ Novo Assunto</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Teses</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-assuntos"></tbody></table></div>
+        </div>
+        <div id="cfg-teses" class="cfg-panel" style="display:none">
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Teses</div><button class="primary-btn btn-purple" onclick="abrirModalTese('novo')">+ Nova Tese</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
+        </div>
+        <div id="cfg-varas" class="cfg-panel" style="display:none">
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Varas</div><button class="primary-btn btn-blue" onclick="abrirModalVara('novo')">+ Nova Vara</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Vara</th><th>Tribunal</th><th>Comarca</th><th>Estado</th><th>Juízes</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-varas"></tbody></table></div>
+        </div>
+        <div id="cfg-juizes" class="cfg-panel" style="display:none">
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Juízes</div><button class="primary-btn btn-purple" onclick="abrirModalJuiz('novo')">+ Novo Juiz</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Juiz</th><th>Vara</th><th>Gênero</th><th>Titular</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-juizes"></tbody></table></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1683,6 +1707,12 @@ function renderAlvaras(){
 }
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
+function cfgTab(name){
+  document.querySelectorAll('.cfg-panel').forEach(el=>el.style.display='none');
+  document.querySelectorAll('.subtab').forEach(el=>el.classList.remove('on'));
+  const p=document.getElementById('cfg-'+name);if(p)p.style.display='block';
+  const b=document.querySelector(`.subtab[data-cfg="${name}"]`);if(b)b.classList.add('on');
+}
 function renderConfig(){
   document.getElementById('tbl-peritos').innerHTML=peritos.length?peritos.map((p,i)=>`<tr><td style="font-weight:600">${p.nome}</td><td style="color:var(--muted)">${p.email||'—'}</td><td>${isBool(p.ativo)?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap"><button class="act-btn act-blue" onclick="abrirModalPerito('editar',${i})">Editar</button> <button class="act-btn act-red" onclick="confirmarExcluirPerito(${i})">Excluir</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Nenhum perito cadastrado.</td></tr>';
   const ta=document.getElementById('tbl-assuntos');
