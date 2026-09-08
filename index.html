@@ -494,7 +494,7 @@ tbody tr:nth-child(even){background:#fafafa}
           <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
         </div>
         <div id="cfg-varas" class="cfg-panel" style="display:none">
-          <div class="topbar"><div style="font-size:13px;font-weight:700">Varas</div><div style="display:flex;gap:8px"><button class="btn-clear-filters" onclick="realinharProcessos()" title="Reencaixa os processos nos nomes padronizados do cadastro">🔧 Realinhar processos</button><button class="primary-btn btn-blue" onclick="abrirModalVara('novo')">+ Nova Vara</button></div></div>
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Varas</div><button class="primary-btn btn-blue" onclick="abrirModalVara('novo')">+ Nova Vara</button></div>
           <div class="tbl-wrap"><table><thead><tr><th>Vara</th><th>Tribunal</th><th>Comarca</th><th>Estado</th><th>Juízes</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-varas"></tbody></table></div>
         </div>
         <div id="cfg-juizes" class="cfg-panel" style="display:none">
@@ -2363,36 +2363,6 @@ function confirmarExcluirVara(idx){
   abrirConfirm(`Excluir a vara "${v.nome}"?`,async()=>{
     try{const rn=await encontrarLinha('varas','id',v.id,HDR_VARAS);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('varas',rn);listaVaras.splice(idx,1);renderTudo();toast('✅ Vara excluída!');}
     catch(e){toast('❌ '+e.message,'error');}
-  });
-}
-// ─── REALINHAR processos ao cadastro (quando editaram a planilha na mão) ──────
-const _norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
-async function realinharCadastros(){
-  const varaByNorm={};listaVaras.forEach(v=>{varaByNorm[_norm(v.nome)]=v.nome;});
-  let corr=0;const semMatch=[];
-  for(const p of processos){
-    const upd={...p};let mudou=false;
-    if(p.vara&&!listaVaras.some(v=>v.nome===p.vara)){
-      const alvo=varaByNorm[_norm(p.vara)];
-      if(alvo){upd.vara=alvo;mudou=true;}else semMatch.push(`${p.num} — vara "${p.vara}"`);
-    }
-    if(p.juiz&&!listaJuizes.some(j=>j.nome===p.juiz&&j.vara===upd.vara)){
-      const alvo=listaJuizes.find(j=>_norm(j.nome)===_norm(p.juiz)&&_norm(j.vara)===_norm(upd.vara));
-      if(alvo){upd.juiz=alvo.nome;mudou=true;}
-      else if(!listaJuizes.some(j=>j.nome===p.juiz))semMatch.push(`${p.num} — juiz "${p.juiz}"`);
-    }
-    if(mudou){const r=await encontrarLinha('processos','num',p.num,HDR_P);if(r>0){await sheetsUpdate(`processos!A${r}:U${r}`,[objToRow(HDR_P,upd)]);Object.assign(p,upd);corr++;}}
-  }
-  renderTudo();return{corr,semMatch};
-}
-function realinharProcessos(){
-  abrirConfirm('Realinhar os processos ao cadastro de Varas/Juízes?\n\nCorrige automaticamente os processos cujo nome de vara/juiz só mudou de grafia (maiúsculas, acento, espaço), casando com o cadastro atual. O que não casar é listado no console para ajuste manual.',async()=>{
-    toast('⏳ Realinhando processos...');
-    try{
-      const {corr,semMatch}=await realinharCadastros();
-      if(semMatch.length){toast(`✅ ${corr} processo(s) realinhado(s). ${semMatch.length} não casaram (veja no console).`,'warn');console.warn('NÃO CASARAM (ajuste manual):\n'+semMatch.join('\n'));}
-      else toast(`✅ ${corr} processo(s) realinhado(s). Tudo casado!`);
-    }catch(e){toast('❌ '+e.message,'error');}
   });
 }
 // ─── JUÍZES (CRUD) ────────────────────────────────────────────────────────────
