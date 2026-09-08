@@ -494,7 +494,7 @@ tbody tr:nth-child(even){background:#fafafa}
           <div class="tbl-wrap"><table><thead><tr><th>Assunto</th><th>Tese</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-config"></tbody></table></div>
         </div>
         <div id="cfg-varas" class="cfg-panel" style="display:none">
-          <div class="topbar"><div style="font-size:13px;font-weight:700">Varas</div><button class="primary-btn btn-blue" onclick="abrirModalVara('novo')">+ Nova Vara</button></div>
+          <div class="topbar"><div style="font-size:13px;font-weight:700">Varas</div><div style="display:flex;gap:8px"><button class="btn-clear-filters" onclick="conferirConsistencia()" title="Confere se os processos batem com o cadastro de varas/juízes">🔎 Conferir consistência</button><button class="primary-btn btn-blue" onclick="abrirModalVara('novo')">+ Nova Vara</button></div></div>
           <div class="tbl-wrap"><table><thead><tr><th>Vara</th><th>Tribunal</th><th>Comarca</th><th>Estado</th><th>Juízes</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbl-varas"></tbody></table></div>
         </div>
         <div id="cfg-juizes" class="cfg-panel" style="display:none">
@@ -2364,6 +2364,27 @@ function confirmarExcluirVara(idx){
     try{const rn=await encontrarLinha('varas','id',v.id,HDR_VARAS);if(rn<0)throw new Error('Não encontrado.');await deletarLinha('varas',rn);listaVaras.splice(idx,1);renderTudo();toast('✅ Vara excluída!');}
     catch(e){toast('❌ '+e.message,'error');}
   });
+}
+// Confere se os processos batem com o cadastro de varas/juizes (somente leitura)
+function conferirConsistencia(){
+  const pVara=[],pJuiz=[],pTrib=[];
+  processos.forEach(p=>{
+    if(p.vara){
+      const v=listaVaras.find(x=>x.nome===p.vara);
+      if(!v)pVara.push(`${p.num}: "${p.vara}"`);
+      else if(p.tribunal&&v.tribunal&&p.tribunal!==v.tribunal)pTrib.push(`${p.num}: processo=${p.tribunal} / cadastro da vara=${v.tribunal}`);
+    }
+    if(p.juiz){
+      const j=listaJuizes.find(x=>x.nome===p.juiz);
+      if(!j)pJuiz.push(`${p.num}: "${p.juiz}" (não cadastrado)`);
+      else if(p.vara&&j.vara!==p.vara)pJuiz.push(`${p.num}: juiz "${p.juiz}" está cadastrado na vara "${j.vara}", mas o processo é da "${p.vara}"`);
+    }
+  });
+  let m='CONFERÊNCIA DE CONSISTÊNCIA\n('+processos.length+' processos)\n\n';
+  m+=pVara.length?`⚠ VARAS fora do cadastro (${pVara.length}):\n- ${pVara.join('\n- ')}\n\n`:'✅ Todas as varas dos processos existem no cadastro.\n\n';
+  m+=pJuiz.length?`⚠ JUÍZES fora do cadastro / vara errada (${pJuiz.length}):\n- ${pJuiz.join('\n- ')}\n\n`:'✅ Todos os juízes dos processos existem no cadastro.\n\n';
+  m+=pTrib.length?`⚠ TRIBUNAL do processo ≠ da vara (${pTrib.length}):\n- ${pTrib.join('\n- ')}`:'✅ Tribunais dos processos batem com as varas.';
+  alert(m);
 }
 // ─── JUÍZES (CRUD) ────────────────────────────────────────────────────────────
 function abrirModalJuiz(modo,idx){
