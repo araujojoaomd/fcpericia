@@ -1311,7 +1311,7 @@ function montarEnderecamento(p){
   const j=listaJuizes.find(x=>x.nome===p.juiz&&x.vara===p.vara);
   const fem=j&&/^f/i.test(String(j.genero||''));
   const trat=fem?'Excelentíssima Senhora Doutora Juíza':'Excelentíssimo Senhor Doutor Juiz';
-  return `${trat} de Direito da ${p.vara||''}, Estado de ${estado||''}`;
+  return `${trat} de Direito da ${p.vara||''}, Estado de ${estado||''}`.toUpperCase();
 }
 function dataPorExtenso(){
   const m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
