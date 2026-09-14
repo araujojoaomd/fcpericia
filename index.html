@@ -274,13 +274,13 @@ tbody tr:nth-child(even){background:#fafafa}
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
-    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlPopularProcessos();mlCarregarPastaModelos()"><span>📑</span> Modelos de Laudo</button>
     <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Tabelas de Cadastro</button>
+    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlCarregarPastaModelos()"><span>📑</span> Modelos de Documentos</button>
     <div class="sidebar-footer">
       <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
       <button class="btn-logout" onclick="fazerLogout()">Sair da conta</button>
@@ -498,23 +498,17 @@ tbody tr:nth-child(even){background:#fafafa}
           .ml-pill.on{background:#dcfce7;color:#16a34a}
           .ml-pill.off{background:var(--gray3);color:var(--muted)}
         </style>
-        <div class="topbar">
-          <div><div class="page-title">Modelos de Laudo (PASEP)</div><p class="page-sub" style="margin:2px 0 0">Responda às perguntas sobre o caso — o sistema indica qual modelo de laudo usar.</p></div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-            <span id="ml-pasta-status" style="font-size:11px;color:var(--faint)"></span>
-            <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
-            <button class="primary-btn btn-purple" onclick="mlToggleLista()">📚 Ver todos os modelos</button>
-          </div>
+        <div class="page-title">Modelos de Documentos</div>
+        <p class="page-sub">Modelos prontos de laudos e documentos, organizados por tipo.</p>
+        <div class="subtabs">
+          <button class="subtab on" data-md="pasep" onclick="mdTab('pasep')">Laudo PASEP</button>
+          <button class="subtab" data-md="todos" onclick="mdTab('todos')">Todos os modelos</button>
         </div>
 
+        <div id="md-pasep" class="md-sec">
         <div class="ml-wrap">
+          <p class="ml-qhint" style="margin:0 0 12px">Responda às perguntas sobre o caso — o sistema indica qual modelo de laudo PASEP usar e libera o download.</p>
           <div class="ml-card" id="ml-wizard">
-            <div class="ml-q">
-              <div class="ml-qlbl">Processo <span style="color:var(--faint);font-weight:400">(opcional)</span></div>
-              <div class="ml-qhint">Vincule para registrar no histórico do processo qual modelo foi identificado/baixado.</div>
-              <select class="filter-select" id="ml-processo" style="min-width:280px"><option value="">— não vincular —</option></select>
-            </div>
-
             <div class="ml-q">
               <div class="ml-qlbl">1 · Quais teses de índice a Parte Autora pleiteou?</div>
               <div class="ml-qhint">Na petição inicial ou na réplica. Se pediu <b>apenas revisão da Tabela Oficial</b>, não marque nenhuma. Expurgos e TJLP, quando pleiteados juntos, entram no mesmo cenário.</div>
@@ -560,12 +554,23 @@ tbody tr:nth-child(even){background:#fafafa}
           </div>
 
           <div id="ml-resultado"></div>
+        </div>
+        </div>
 
-          <div class="ml-card ml-hidden" id="ml-lista">
-            <div class="ml-qlbl" style="margin-bottom:8px">Todos os modelos</div>
+        <div id="md-todos" class="md-sec" style="display:none">
+        <div class="ml-wrap">
+          <div class="ml-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+              <div class="ml-qlbl" style="margin:0">Laudo PASEP — todos os modelos</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span id="ml-pasta-status" style="font-size:11px;color:var(--faint)"></span>
+                <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
+              </div>
+            </div>
             <div class="ml-note" style="margin:0 0 12px">📁 Nomeie os arquivos na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de modelos</a> assim: o laudo como <b>A1.docx</b>, <b>A2.docx</b>, <b>D1.docx</b>, <b>D2.docx</b>, <b>C.docx</b>; e os anexos com a palavra <b>anexos</b> no nome (ex.: <b>A1-anexos.docx</b>). O painel casa automaticamente — clique em <b>🔄 Atualizar</b> após subir.</div>
             <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Quando usar</th><th>Arquivo</th><th></th></tr></thead><tbody id="ml-lista-body"></tbody></table></div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -1473,12 +1478,12 @@ const MODELOS_LAUDO={
       quando:'Teses de Expurgos + TJLP + saques indevidos confirmados (lançamentos desconsiderados no recálculo).'}
 };
 
-function mlPopularProcessos(){
-  const sel=document.getElementById('ml-processo');if(!sel)return;
-  const atual=sel.value;
-  const lista=processos.filter(p=>p.etapa_atual!=='Cancelado').sort((a,b)=>(a.num>b.num?1:-1));
-  sel.innerHTML='<option value="">— não vincular —</option>'+lista.map(p=>`<option value="${p.num}">${p.num} — ${(p.autor||'').slice(0,42)}</option>`).join('');
-  sel.value=atual;
+function mdTab(sec){
+  document.querySelectorAll('#tab-modelos .md-sec').forEach(el=>el.style.display='none');
+  document.querySelectorAll('#tab-modelos .subtab').forEach(el=>el.classList.remove('on'));
+  const p=document.getElementById('md-'+sec);if(p)p.style.display='block';
+  const b=document.querySelector(`#tab-modelos .subtab[data-md="${sec}"]`);if(b)b.classList.add('on');
+  if(sec==='todos'){mlCarregarPastaModelos();mlRenderLista();}
 }
 function mlTeses(){
   const e=document.getElementById('ml-t-expurgos').checked, t=document.getElementById('ml-t-tjlp').checked;
@@ -1520,7 +1525,6 @@ function mlIdentificar(){
   res.contexto={teses:t,desconsidera:d.val,diferenca:mlDif()};
   mlUltimaRes=res;
   mlRenderResultado(res);
-  mlLogSelecao(res);
   document.getElementById('ml-resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 // Casa os arquivos da pasta do Drive com os modelos, por convenção de nome:
@@ -1562,7 +1566,7 @@ async function mlCarregarPastaModelos(force){
     mlPastaCarregada=true;
     const anexados=Object.values(MODELOS_LAUDO).filter(m=>m.modelo).length;
     if(st)st.textContent=`✓ ${anexados}/5 modelos anexados (${n} arquivo(s) na pasta).`;
-    if(!document.getElementById('ml-lista').classList.contains('ml-hidden'))mlRenderLista();
+    mlRenderLista();
     if(mlUltimaRes)mlRenderResultado(mlUltimaRes);
   }catch(e){if(st)st.textContent='⚠ Erro ao ler a pasta.';}
   finally{mlCarregandoPasta=false;}
@@ -1570,7 +1574,7 @@ async function mlCarregarPastaModelos(force){
 function mlBotoesDownload(fam){
   const m=MODELOS_LAUDO[fam];
   const btn=(url,txt)=>url
-    ? `<a class="primary-btn btn-blue" href="${url}" target="_blank" rel="noopener" onclick="mlLogDownload('${fam}')" style="text-decoration:none;display:inline-block">${txt}</a>`
+    ? `<a class="primary-btn btn-blue" href="${url}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">${txt}</a>`
     : `<button class="primary-btn" style="background:var(--gray3);color:var(--muted);cursor:not-allowed" disabled>${txt} — ainda não anexado</button>`;
   return `<div class="ml-dl">${btn(m.modeloUrl,'⬇ Baixar modelo')}${btn(m.anexoUrl,'⬇ Baixar anexos')}</div>`;
 }
@@ -1600,28 +1604,6 @@ function mlRenderResultado(res){
     ${mlBotoesDownload(res.familia)}${orient}${refazer}</div>`;
 }
 function mlRefazer(){document.getElementById('ml-resultado').innerHTML='';mlUltimaRes=null;document.getElementById('ml-wizard').scrollIntoView({behavior:'smooth',block:'start'});}
-async function mlLogSelecao(res){
-  const num=document.getElementById('ml-processo').value;if(!num)return;
-  const c=res.contexto;
-  const rot=res.semModelo?`SEM MODELO (usar ${res.fallback}) — ${res.motivo}`:`Modelo ${res.familia}`;
-  const detalhe=`teses: ${c.teses}; saques: ${c.desconsidera?'desconsiderados':'não desconsiderados'}; tabela oficial: ${c.diferenca==='com'?'com diferença':'sem diferença'}`;
-  try{
-    const mov={id:uid(),num_processo:num,tipo:'Observação Simples',etapa_nova:'',observacao:`📑 Modelo de laudo — ${rot} (${detalhe}).`,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:'',data_fim_diligencia:'',dias_diligencia:''};
-    await sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,mov)]);movs.push(mov);
-  }catch(e){/* auditoria é best-effort */}
-}
-function mlLogDownload(fam){
-  const num=document.getElementById('ml-processo').value;if(!num||!mlUltimaRes)return;
-  try{
-    const mov={id:uid(),num_processo:num,tipo:'Observação Simples',etapa_nova:'',observacao:`📑 Modelo de laudo ${fam} — arquivo baixado.`,data_registro:today(),tem_prazo:'FALSE',data_intimacao:'',prazo_dias:'',data_limite:'',data_inicio_diligencia:'',data_fim_diligencia:'',dias_diligencia:''};
-    sheetsAppend('movimentacoes!A:M',[objToRow(HDR_M,mov)]).then(()=>movs.push(mov));
-  }catch(e){}
-}
-function mlToggleLista(){
-  const el=document.getElementById('ml-lista');
-  const nowHidden=el.classList.toggle('ml-hidden');
-  if(!nowHidden)mlRenderLista();
-}
 function mlRenderLista(){
   document.getElementById('ml-lista-body').innerHTML=Object.values(MODELOS_LAUDO).map(m=>{
     const on=!!m.modelo;
