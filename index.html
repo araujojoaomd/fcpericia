@@ -274,7 +274,7 @@ tbody tr:nth-child(even){background:#fafafa}
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
-    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlPopularProcessos()"><span>📑</span> Modelos de Laudo</button>
+    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlPopularProcessos();mlCarregarPastaModelos()"><span>📑</span> Modelos de Laudo</button>
     <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
@@ -500,7 +500,11 @@ tbody tr:nth-child(even){background:#fafafa}
         </style>
         <div class="topbar">
           <div><div class="page-title">Modelos de Laudo (PASEP)</div><p class="page-sub" style="margin:2px 0 0">Responda às perguntas sobre o caso — o sistema indica qual modelo de laudo usar.</p></div>
-          <button class="primary-btn btn-purple" onclick="mlToggleLista()">📚 Ver todos os modelos</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <span id="ml-pasta-status" style="font-size:11px;color:var(--faint)"></span>
+            <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
+            <button class="primary-btn btn-purple" onclick="mlToggleLista()">📚 Ver todos os modelos</button>
+          </div>
         </div>
 
         <div class="ml-wrap">
@@ -558,7 +562,8 @@ tbody tr:nth-child(even){background:#fafafa}
           <div id="ml-resultado"></div>
 
           <div class="ml-card ml-hidden" id="ml-lista">
-            <div class="ml-qlbl" style="margin-bottom:10px">Todos os modelos</div>
+            <div class="ml-qlbl" style="margin-bottom:8px">Todos os modelos</div>
+            <div class="ml-note" style="margin:0 0 12px">📁 Nomeie os arquivos na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de modelos</a> assim: o laudo como <b>A1.docx</b>, <b>A2.docx</b>, <b>D1.docx</b>, <b>D2.docx</b>, <b>C.docx</b>; e os anexos com a palavra <b>anexos</b> no nome (ex.: <b>A1-anexos.docx</b>). O painel casa automaticamente — clique em <b>🔄 Atualizar</b> após subir.</div>
             <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Quando usar</th><th>Arquivo</th><th></th></tr></thead><tbody id="ml-lista-body"></tbody></table></div>
           </div>
         </div>
@@ -913,6 +918,7 @@ const TJSE_SHEET_ID='1kOiDQxItEmDCskabHUYWkzxX6L90t678QTzGGDIGy5g';
 // Gerador de petições (Apps Script) + pasta dos modelos (Google Docs)
 const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1wAfgCiZ8tkwxC_EeCA0I1qOlaBh2XnM-Us9D3O5aVEo5esBLW0/exec';
 const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
+const MODELOS_LAUDO_FOLDER_ID='1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -1517,13 +1523,56 @@ function mlIdentificar(){
   mlLogSelecao(res);
   document.getElementById('ml-resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function mlLinkBaixar(id){return id?`https://drive.google.com/uc?export=download&id=${id}`:null;}
+// Casa os arquivos da pasta do Drive com os modelos, por convenção de nome:
+// "A1.docx" = modelo A1; "A1-anexos.docx" (palavra "anexo" no nome) = anexos de A1.
+const MODELOS_LAUDO_CODIGOS=['A1','A2','D1','D2','C'];
+let mlPastaCarregada=false, mlCarregandoPasta=false;
+function mlCodigoDoArquivo(nome){
+  const base=(nome||'').replace(/\.[^.]+$/,'').trim();
+  for(const cod of MODELOS_LAUDO_CODIGOS){
+    if(new RegExp('^'+cod+'(?![0-9A-Za-z])','i').test(base))return cod;
+  }
+  return null;
+}
+function mlEhAnexo(nome){return /anexo/i.test(nome||'');}
+function mlDownloadUrl(f){
+  if(f.mimeType==='application/vnd.google-apps.document')return `https://docs.google.com/document/d/${f.id}/export?format=docx`;
+  return `https://drive.google.com/uc?export=download&id=${f.id}`;
+}
+async function mlCarregarPastaModelos(force){
+  if(typeof accessToken==='undefined'||!accessToken)return;
+  if((mlPastaCarregada&&!force)||mlCarregandoPasta)return;
+  mlCarregandoPasta=true;
+  const st=document.getElementById('ml-pasta-status'); if(st)st.textContent='🔄 Lendo pasta de modelos…';
+  try{
+    const q=encodeURIComponent(`'${MODELOS_LAUDO_FOLDER_ID}' in parents and trashed=false`);
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+    if(!r.ok){if(st)st.textContent='⚠ Não consegui ler a pasta de modelos.';return;}
+    const d=await r.json();
+    Object.values(MODELOS_LAUDO).forEach(m=>{m.modelo=null;m.anexo=null;m.modeloUrl=null;m.anexoUrl=null;m.nomeModelo='';m.nomeAnexo='';});
+    let n=0;
+    (d.files||[]).forEach(f=>{
+      if(f.mimeType==='application/vnd.google-apps.folder')return;
+      const cod=mlCodigoDoArquivo(f.name); if(!cod)return;
+      const m=MODELOS_LAUDO[cod];
+      if(mlEhAnexo(f.name)){m.anexo=f.id;m.anexoUrl=mlDownloadUrl(f);m.nomeAnexo=f.name;}
+      else{m.modelo=f.id;m.modeloUrl=mlDownloadUrl(f);m.nomeModelo=f.name;}
+      n++;
+    });
+    mlPastaCarregada=true;
+    const anexados=Object.values(MODELOS_LAUDO).filter(m=>m.modelo).length;
+    if(st)st.textContent=`✓ ${anexados}/5 modelos anexados (${n} arquivo(s) na pasta).`;
+    if(!document.getElementById('ml-lista').classList.contains('ml-hidden'))mlRenderLista();
+    if(mlUltimaRes)mlRenderResultado(mlUltimaRes);
+  }catch(e){if(st)st.textContent='⚠ Erro ao ler a pasta.';}
+  finally{mlCarregandoPasta=false;}
+}
 function mlBotoesDownload(fam){
   const m=MODELOS_LAUDO[fam];
-  const btn=(id,txt)=>id
-    ? `<a class="primary-btn btn-blue" href="${mlLinkBaixar(id)}" target="_blank" rel="noopener" onclick="mlLogDownload('${fam}')" style="text-decoration:none;display:inline-block">${txt}</a>`
+  const btn=(url,txt)=>url
+    ? `<a class="primary-btn btn-blue" href="${url}" target="_blank" rel="noopener" onclick="mlLogDownload('${fam}')" style="text-decoration:none;display:inline-block">${txt}</a>`
     : `<button class="primary-btn" style="background:var(--gray3);color:var(--muted);cursor:not-allowed" disabled>${txt} — ainda não anexado</button>`;
-  return `<div class="ml-dl">${btn(m.modelo,'⬇ Baixar modelo')}${btn(m.anexo,'⬇ Baixar anexos')}</div>`;
+  return `<div class="ml-dl">${btn(m.modeloUrl,'⬇ Baixar modelo')}${btn(m.anexoUrl,'⬇ Baixar anexos')}</div>`;
 }
 function mlRenderResultado(res){
   const box=document.getElementById('ml-resultado');
@@ -1576,8 +1625,8 @@ function mlToggleLista(){
 function mlRenderLista(){
   document.getElementById('ml-lista-body').innerHTML=Object.values(MODELOS_LAUDO).map(m=>{
     const on=!!m.modelo;
-    const dl=(m.modelo?`<a class="primary-btn btn-blue" href="${mlLinkBaixar(m.modelo)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Modelo</a>`:'')
-            +(m.anexo?` <a class="primary-btn btn-blue" href="${mlLinkBaixar(m.anexo)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Anexos</a>`:'');
+    const dl=(m.modeloUrl?`<a class="primary-btn btn-blue" href="${m.modeloUrl}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Modelo</a>`:'')
+            +(m.anexoUrl?` <a class="primary-btn btn-blue" href="${m.anexoUrl}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Anexos</a>`:'');
     return `<tr><td><b>${m.label}</b></td><td style="color:var(--muted)">${m.quando}</td><td><span class="ml-pill ${on?'on':'off'}">${on?'anexado':'pendente'}</span></td><td>${dl}</td></tr>`;
   }).join('');
 }
