@@ -518,34 +518,17 @@ tbody tr:nth-child(even){background:#fafafa}
 
             <div class="ml-q">
               <div class="ml-qlbl">2 · Houve alegação de Saques Indevidos?</div>
-              <label class="ml-opt"><input type="radio" name="ml-saque" value="nao" onchange="mlOnSaque()" checked> Não houve</label>
-              <label class="ml-opt"><input type="radio" name="ml-saque" value="generico" onchange="mlOnSaque()"> Sim, de forma genérica</label>
-              <label class="ml-opt"><input type="radio" name="ml-saque" value="especifico" onchange="mlOnSaque()"> Sim, de forma específica</label>
-              <div class="ml-note">Alegação genérica, objeto delimitado pela parte ou ausência de lançamentos identificados → a Etapa IV entra só como fundamentação, sem apêndice próprio.</div>
-            </div>
-
-            <div class="ml-q ml-hidden" id="ml-q-onus">
-              <div class="ml-qlbl">3 · De quem era o ônus da prova?</div>
-              <div class="ml-qhint">Pode marcar os dois (saques com ônus dividido).</div>
-              <label class="ml-opt"><input type="checkbox" id="ml-o-autora" onchange="mlOnOnus()"> Parte Autora <span style="color:var(--muted)">— deve provar que <b>não recebeu</b></span></label>
-              <label class="ml-opt"><input type="checkbox" id="ml-o-banco" onchange="mlOnOnus()"> Banco do Brasil <span style="color:var(--muted)">— deve provar que <b>pagou</b></span></label>
-              <div class="ml-sub ml-hidden" id="ml-q-banco">
-                <div class="ml-qlbl" style="font-size:12px">3a · O Banco do Brasil:</div>
-                <label class="ml-opt"><input type="radio" name="ml-banco" value="comprovou"> Comprovou o pagamento</label>
-                <label class="ml-opt"><input type="radio" name="ml-banco" value="nao"> NÃO comprovou o pagamento</label>
-              </div>
-              <div class="ml-sub ml-hidden" id="ml-q-autora">
-                <div class="ml-qlbl" style="font-size:12px">3b · A Parte Autora:</div>
-                <label class="ml-opt"><input type="radio" name="ml-autora" value="comprovou"> Comprovou o não-recebimento</label>
-                <label class="ml-opt"><input type="radio" name="ml-autora" value="nao"> NÃO comprovou o não-recebimento</label>
-              </div>
+              <label class="ml-opt"><input type="radio" name="ml-saque" value="SemSaq" checked> Não houve (sem alegação)</label>
+              <label class="ml-opt"><input type="radio" name="ml-saque" value="SaqGen"> Sim, de forma genérica</label>
+              <label class="ml-opt"><input type="radio" name="ml-saque" value="SaqEsp"> Sim, de forma específica</label>
+              <div class="ml-note">Genérico, objeto delimitado pela parte ou sem lançamentos identificados → a Etapa IV entra só como fundamentação. No específico, o ônus da prova e a comprovação (Banco/Autora) são analisados no laudo, mas não mudam o modelo.</div>
             </div>
 
             <div class="ml-q">
-              <div class="ml-qlbl">4 · Diferença na apuração pela Tabela Oficial?</div>
+              <div class="ml-qlbl">3 · Diferença na apuração pela Tabela Oficial?</div>
               <div class="ml-qhint">Resultado do recálculo pela tabela oficial (cenário-base, sempre presente).</div>
-              <label class="ml-opt"><input type="radio" name="ml-dif" value="com" checked> Há diferença (≥ R$ 10,00)</label>
-              <label class="ml-opt"><input type="radio" name="ml-dif" value="sem"> Não há diferença relevante (&lt; R$ 10,00)</label>
+              <label class="ml-opt"><input type="radio" name="ml-dif" value="CD" checked> Há diferença (≥ R$ 10,00)</label>
+              <label class="ml-opt"><input type="radio" name="ml-dif" value="SD"> Não há diferença relevante (&lt; R$ 10,00)</label>
             </div>
 
             <div style="text-align:right;margin-top:10px">
@@ -1465,18 +1448,30 @@ async function gerarPeticao(){
 // Manifesto dos modelos. Enquanto `modelo`/`anexo` forem null, a tela mostra
 // "ainda não anexado". Ao anexar um .docx no Drive, cole aqui o ID do arquivo
 // (modelo e anexos) e, se quiser, preencha apendices/cenarios/paginas.
-const MODELOS_LAUDO={
-  A1:{label:'A1',modelo:null,anexo:null,apendices:'',cenarios:'',paginas:'',
-      quando:'Só revisão da Tabela Oficial · sem saques a desconsiderar · COM diferença (≥ R$ 10).'},
-  A2:{label:'A2',modelo:null,anexo:null,apendices:'',cenarios:'',paginas:'',
-      quando:'Só revisão da Tabela Oficial · sem saques a desconsiderar · SEM diferença (< R$ 10).'},
-  D1:{label:'D1',modelo:null,anexo:null,apendices:'',cenarios:'',paginas:'',
-      quando:'Tese de TJLP ajustada · sem Expurgos · sem saques a desconsiderar.'},
-  D2:{label:'D2',modelo:null,anexo:null,apendices:'',cenarios:'',paginas:'',
-      quando:'Teses de Expurgos + TJLP · sem saques a desconsiderar.'},
-  C :{label:'C', modelo:null,anexo:null,apendices:'',cenarios:'',paginas:'',
-      quando:'Teses de Expurgos + TJLP + saques indevidos confirmados (lançamentos desconsiderados no recálculo).'}
-};
+// Modelos de Laudo PASEP: 24 combinações (Teses × Saque × Diferença).
+// Código do arquivo = TESE_SAQUE_DIF, ex.: EXP-TJLP_SaqEsp_CD.docx (+ ..._anexos).
+const ML_TESES=[
+  {cod:'OF',label:'Só Tabela Oficial'},
+  {cod:'TJLP',label:'TJLP ajustada'},
+  {cod:'EXP',label:'Expurgos'},
+  {cod:'EXP-TJLP',label:'Expurgos + TJLP'}
+];
+const ML_SAQUES=[
+  {cod:'SemSaq',label:'sem alegação de saque'},
+  {cod:'SaqGen',label:'saque genérico'},
+  {cod:'SaqEsp',label:'saque específico'}
+];
+const ML_DIFS=[
+  {cod:'CD',label:'com diferença (Tabela Oficial)'},
+  {cod:'SD',label:'sem diferença (Tabela Oficial)'}
+];
+const MODELOS_LAUDO={};
+const MODELOS_LAUDO_CODIGOS=[];
+ML_TESES.forEach(t=>ML_SAQUES.forEach(s=>ML_DIFS.forEach(d=>{
+  const code=`${t.cod}_${s.cod}_${d.cod}`;
+  MODELOS_LAUDO_CODIGOS.push(code);
+  MODELOS_LAUDO[code]={label:code,modelo:null,anexo:null,modeloUrl:null,anexoUrl:null,quando:`${t.label} · ${s.label} · ${d.label}`};
+})));
 
 function mdTab(sec){
   document.querySelectorAll('#tab-modelos .md-sec').forEach(el=>el.style.display='none');
@@ -1487,54 +1482,29 @@ function mdTab(sec){
 }
 function mlTeses(){
   const e=document.getElementById('ml-t-expurgos').checked, t=document.getElementById('ml-t-tjlp').checked;
-  if(e&&t)return'ambos';if(e)return'expurgos';if(t)return'tjlp';return'nenhuma';
+  if(e&&t)return'EXP-TJLP';if(e)return'EXP';if(t)return'TJLP';return'OF';
 }
-function mlSaque(){const r=document.querySelector('input[name="ml-saque"]:checked');return r?r.value:'nao';}
-function mlOnSaque(){
-  const esp=mlSaque()==='especifico';
-  document.getElementById('ml-q-onus').classList.toggle('ml-hidden',!esp);
-  if(!esp){document.getElementById('ml-o-autora').checked=false;document.getElementById('ml-o-banco').checked=false;mlOnOnus();}
-}
-function mlOnOnus(){
-  document.getElementById('ml-q-banco').classList.toggle('ml-hidden',!document.getElementById('ml-o-banco').checked);
-  document.getElementById('ml-q-autora').classList.toggle('ml-hidden',!document.getElementById('ml-o-autora').checked);
-}
-function mlDesconsidera(){
-  if(mlSaque()!=='especifico')return{ok:true,val:false};
-  const b=document.getElementById('ml-o-banco').checked, a=document.getElementById('ml-o-autora').checked;
-  if(!b&&!a)return{ok:false,msg:'Marque de quem era o ônus da prova (pergunta 3).'};
-  let desc=false;
-  if(b){const r=document.querySelector('input[name="ml-banco"]:checked');if(!r)return{ok:false,msg:'Informe se o Banco comprovou o pagamento (3a).'};if(r.value==='nao')desc=true;}
-  if(a){const r=document.querySelector('input[name="ml-autora"]:checked');if(!r)return{ok:false,msg:'Informe se a Parte Autora comprovou o não-recebimento (3b).'};if(r.value==='comprovou')desc=true;}
-  return{ok:true,val:desc};
-}
-function mlDif(){const r=document.querySelector('input[name="ml-dif"]:checked');return r?r.value:'com';}
-
-function resolverModeloLaudo(t,desc,dif){
-  if(t==='nenhuma')  return !desc ? {familia:dif==='com'?'A1':'A2'} : {semModelo:true,fallback:'C',motivo:'nenhuma tese + saques desconsiderados'};
-  if(t==='tjlp')     return !desc ? {familia:'D1'}                   : {semModelo:true,fallback:'C',motivo:'só TJLP + saques desconsiderados'};
-  if(t==='expurgos') return {semModelo:true,fallback:'D2',motivo:'só Expurgos (sem TJLP)'};
-  return {familia:desc?'C':'D2'}; // ambos
-}
+function mlSaque(){const r=document.querySelector('input[name="ml-saque"]:checked');return r?r.value:'SemSaq';}
+function mlDif(){const r=document.querySelector('input[name="ml-dif"]:checked');return r?r.value:'CD';}
 
 let mlUltimaRes=null;
 function mlIdentificar(){
-  const t=mlTeses(), d=mlDesconsidera();
-  if(!d.ok){toast(d.msg,'warn');return;}
-  const res=resolverModeloLaudo(t,d.val,mlDif());
-  res.contexto={teses:t,desconsidera:d.val,diferenca:mlDif()};
-  mlUltimaRes=res;
-  mlRenderResultado(res);
+  const code=`${mlTeses()}_${mlSaque()}_${mlDif()}`;
+  mlUltimaRes=code;
+  mlRenderResultado(code);
   document.getElementById('ml-resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-// Casa os arquivos da pasta do Drive com os modelos, por convenção de nome:
-// "A1.docx" = modelo A1; "A1-anexos.docx" (palavra "anexo" no nome) = anexos de A1.
-const MODELOS_LAUDO_CODIGOS=['A1','A2','D1','D2','C'];
+// Casa os arquivos da pasta do Drive com os códigos (TESE_SAQUE_DIF).
+// "EXP-TJLP_SaqEsp_CD.docx" = modelo; "..._CD-anexos.docx" (palavra "anexo") = anexos.
 let mlPastaCarregada=false, mlCarregandoPasta=false;
 function mlCodigoDoArquivo(nome){
-  const base=(nome||'').replace(/\.[^.]+$/,'').trim();
+  let base=(nome||'').replace(/\.[^.]+$/,'').trim();
+  base=base.replace(/[ _-]*anexos?$/i,'').trim();
+  const up=base.toUpperCase();
   for(const cod of MODELOS_LAUDO_CODIGOS){
-    if(new RegExp('^'+cod+'(?![0-9A-Za-z])','i').test(base))return cod;
+    const c=cod.toUpperCase();
+    if(up===c)return cod;
+    if(up.startsWith(c)&&/[ _-]/.test(up.charAt(c.length)))return cod;
   }
   return null;
 }
@@ -1565,7 +1535,7 @@ async function mlCarregarPastaModelos(force){
     });
     mlPastaCarregada=true;
     const anexados=Object.values(MODELOS_LAUDO).filter(m=>m.modelo).length;
-    if(st)st.textContent=`✓ ${anexados}/5 modelos anexados (${n} arquivo(s) na pasta).`;
+    if(st)st.textContent=`✓ ${anexados}/24 modelos anexados (${n} arquivo(s) na pasta).`;
     mlRenderLista();
     if(mlUltimaRes)mlRenderResultado(mlUltimaRes);
   }catch(e){if(st)st.textContent='⚠ Erro ao ler a pasta.';}
@@ -1578,30 +1548,16 @@ function mlBotoesDownload(fam){
     : `<button class="primary-btn" style="background:var(--gray3);color:var(--muted);cursor:not-allowed" disabled>${txt} — ainda não anexado</button>`;
   return `<div class="ml-dl">${btn(m.modeloUrl,'⬇ Baixar modelo')}${btn(m.anexoUrl,'⬇ Baixar anexos')}</div>`;
 }
-function mlRenderResultado(res){
+function mlRenderResultado(code){
   const box=document.getElementById('ml-resultado');
+  const m=MODELOS_LAUDO[code]; if(!m){box.innerHTML='';return;}
   const orient=`<div class="ml-orient">📎 <b>Como usar:</b> suba o modelo baixado na conversa do Claude em que este processo está sendo trabalhado. Preencha apenas os campos <b style="background:#fff3b0;padding:0 3px">realçados em amarelo</b>.</div>`;
   const refazer=`<button class="primary-btn btn-purple" style="margin-top:12px" onclick="mlRefazer()">↺ Refazer seleção</button>`;
-  if(res.semModelo){
-    const fb=MODELOS_LAUDO[res.fallback];
-    box.innerHTML=`<div class="ml-result warn">
-      <div><span class="ml-badge warn">Sem modelo</span><b style="font-size:14px">Ainda não há modelo para esta configuração.</b></div>
-      <p style="font-size:12px;color:#92400e;margin:10px 0 0">Configuração: <b>${res.motivo}</b>.</p>
-      <p style="font-size:13px;margin:12px 0 0">Utilize o modelo <b>${res.fallback}</b> como base e ajuste manualmente:</p>
-      <p style="font-size:12px;color:var(--muted);margin:2px 0 0">${fb.quando}</p>
-      ${mlBotoesDownload(res.fallback)}${orient}
-      <p style="font-size:11px;color:#92400e;margin:12px 0 0">✓ Ocorrência registrada para priorizarmos a produção deste modelo.</p>
-      ${refazer}</div>`;
-    return;
-  }
-  const m=MODELOS_LAUDO[res.familia];
-  const est=(m.apendices||m.cenarios||m.paginas)
-    ? `<ul style="font-size:12px;color:var(--muted);margin:8px 0 0 18px;line-height:1.7">${m.apendices?`<li>Apêndices: ${m.apendices}</li>`:''}${m.cenarios?`<li>Cenários: ${m.cenarios}</li>`:''}${m.paginas?`<li>Páginas: ${m.paginas}</li>`:''}</ul>`
-    : `<p style="font-size:11px;color:var(--faint);margin:8px 0 0">Estrutura (apêndices/cenários/páginas) será exibida quando o modelo for anexado.</p>`;
-  box.innerHTML=`<div class="ml-result ok">
-    <div><span class="ml-badge">${m.label}</span><b style="font-size:14px">Modelo identificado</b></div>
-    <p style="font-size:13px;margin:10px 0 0">${m.quando}</p>${est}
-    ${mlBotoesDownload(res.familia)}${orient}${refazer}</div>`;
+  const anexado=!!m.modelo;
+  box.innerHTML=`<div class="ml-result ${anexado?'ok':'warn'}">
+    <div><span class="ml-badge${anexado?'':' warn'}" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px">${m.label}</span><b style="font-size:14px">${anexado?'Modelo identificado':'Modelo identificado — ainda não anexado'}</b></div>
+    <p style="font-size:13px;margin:10px 0 0">${m.quando}</p>
+    ${mlBotoesDownload(code)}${orient}${refazer}</div>`;
 }
 function mlRefazer(){document.getElementById('ml-resultado').innerHTML='';mlUltimaRes=null;document.getElementById('ml-wizard').scrollIntoView({behavior:'smooth',block:'start'});}
 function mlRenderLista(){
