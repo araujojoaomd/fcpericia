@@ -280,7 +280,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <button class="nav-btn" data-tab="alvaras" onclick="switchTab('alvaras')"><span>₿</span> Honorários</button>
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Tabelas de Cadastro</button>
-    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlCarregarPastaModelos()"><span>📑</span> Modelos de Documentos</button>
+    <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlCarregarPastaModelos()"><span>❏</span> Modelos de Documentos</button>
     <div class="sidebar-footer">
       <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
       <button class="btn-logout" onclick="fazerLogout()">Sair da conta</button>
@@ -497,11 +497,15 @@ tbody tr:nth-child(even){background:#fafafa}
           .ml-pill{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
           .ml-pill.on{background:#dcfce7;color:#16a34a}
           .ml-pill.off{background:var(--gray3);color:var(--muted)}
+          .ml-tema{display:flex;align-items:center;gap:9px;margin:2px 0 14px}
+          .ml-tema-lbl{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+          .ml-tema-chip{background:var(--navy);color:#fff;border-radius:20px;padding:6px 16px;font-size:12.5px;font-weight:700}
         </style>
         <div class="page-title">Modelos de Documentos</div>
-        <p class="page-sub">Modelos prontos de laudos e documentos, organizados por tipo.</p>
+        <p class="page-sub">Modelos prontos, agrupados por tema.</p>
+        <div class="ml-tema"><span class="ml-tema-lbl">Tema</span><span class="ml-tema-chip">PASEP</span></div>
         <div class="subtabs">
-          <button class="subtab on" data-md="pasep" onclick="mdTab('pasep')">Laudo PASEP</button>
+          <button class="subtab on" data-md="pasep" onclick="mdTab('pasep')">Simulador do modelo de laudo</button>
           <button class="subtab" data-md="todos" onclick="mdTab('todos')">Todos os modelos</button>
         </div>
 
@@ -544,14 +548,19 @@ tbody tr:nth-child(even){background:#fafafa}
         <div class="ml-wrap">
           <div class="ml-card">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-              <div class="ml-qlbl" style="margin:0">Laudo PASEP — todos os modelos</div>
+              <div class="ml-qlbl" style="margin:0">PASEP — todos os modelos</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <span id="ml-pasta-status" style="font-size:11px;color:var(--faint)"></span>
                 <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
               </div>
             </div>
-            <div class="ml-note" style="margin:0 0 12px">📁 Nomeie os arquivos na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de modelos</a> assim: o laudo como <b>A1.docx</b>, <b>A2.docx</b>, <b>D1.docx</b>, <b>D2.docx</b>, <b>C.docx</b>; e os anexos com a palavra <b>anexos</b> no nome (ex.: <b>A1-anexos.docx</b>). O painel casa automaticamente — clique em <b>🔄 Atualizar</b> após subir.</div>
-            <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Quando usar</th><th>Arquivo</th><th></th></tr></thead><tbody id="ml-lista-body"></tbody></table></div>
+            <div class="ml-note" style="margin:0 0 14px">📁 <b>Laudos</b> (24) na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de laudos</a>, nomeados pelo código (ex.: <b>EXP-TJLP_SaqEsp_CD.docx</b>). <b>Anexos</b> (4) na <a href="https://drive.google.com/drive/folders/1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO" target="_blank" rel="noopener">pasta de anexos</a>, nomeados pela tese: <b>OF.docx</b>, <b>EXP.docx</b>, <b>TJLP.docx</b>, <b>EXP-TJLP.docx</b>. Clique em <b>🔄 Atualizar</b> após subir.</div>
+
+            <div class="ml-qlbl" style="font-size:12px;margin:6px 0 6px">Anexos (por tese) — 4</div>
+            <div class="tbl-wrap" style="margin-bottom:18px"><table><thead><tr><th>Tese</th><th>Quando usar</th><th>Status</th><th>Anexo</th></tr></thead><tbody id="ml-lista-anexos-body"></tbody></table></div>
+
+            <div class="ml-qlbl" style="font-size:12px;margin:6px 0 6px">Laudos — 24</div>
+            <div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Quando usar</th><th>Laudo</th><th>Anexo (tese)</th></tr></thead><tbody id="ml-lista-body"></tbody></table></div>
           </div>
         </div>
         </div>
@@ -907,6 +916,7 @@ const TJSE_SHEET_ID='1kOiDQxItEmDCskabHUYWkzxX6L90t678QTzGGDIGy5g';
 const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1wAfgCiZ8tkwxC_EeCA0I1qOlaBh2XnM-Us9D3O5aVEo5esBLW0/exec';
 const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
 const MODELOS_LAUDO_FOLDER_ID='1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ';
+const MODELOS_ANEXOS_FOLDER_ID='1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO';
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -1472,6 +1482,10 @@ ML_TESES.forEach(t=>ML_SAQUES.forEach(s=>ML_DIFS.forEach(d=>{
   MODELOS_LAUDO_CODIGOS.push(code);
   MODELOS_LAUDO[code]={label:code,modelo:null,anexo:null,modeloUrl:null,anexoUrl:null,quando:`${t.label} · ${s.label} · ${d.label}`};
 })));
+// Anexos: variam SÓ pela tese (4). Código do arquivo = tese: OF.docx, EXP.docx, TJLP.docx, EXP-TJLP.docx.
+const MODELOS_ANEXO={};
+const MODELOS_ANEXO_CODIGOS=[];
+ML_TESES.forEach(t=>{MODELOS_ANEXO_CODIGOS.push(t.cod);MODELOS_ANEXO[t.cod]={label:t.cod,quando:t.label,modelo:null,modeloUrl:null,nome:''};});
 
 function mdTab(sec){
   document.querySelectorAll('#tab-modelos .md-sec').forEach(el=>el.style.display='none');
@@ -1509,44 +1523,64 @@ function mlCodigoDoArquivo(nome){
   return null;
 }
 function mlEhAnexo(nome){return /anexo/i.test(nome||'');}
+function mlCodigoAnexo(nome){
+  let base=(nome||'').replace(/\.[^.]+$/,'').trim();
+  base=base.replace(/^anexos?[ _-]*/i,'').replace(/[ _-]*anexos?$/i,'').trim();
+  const up=base.toUpperCase();
+  const ord=MODELOS_ANEXO_CODIGOS.slice().sort((a,b)=>b.length-a.length); // EXP-TJLP antes de EXP
+  for(const cod of ord){
+    const c=cod.toUpperCase();
+    if(up===c)return cod;
+    if(up.startsWith(c)&&/[ _-]/.test(up.charAt(c.length)))return cod;
+  }
+  return null;
+}
 function mlDownloadUrl(f){
   if(f.mimeType==='application/vnd.google-apps.document')return `https://docs.google.com/document/d/${f.id}/export?format=docx`;
   return `https://drive.google.com/uc?export=download&id=${f.id}`;
+}
+async function mlListarPasta(folderId){
+  const q=encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)throw new Error('drive '+r.status);
+  return (await r.json()).files||[];
 }
 async function mlCarregarPastaModelos(force){
   if(typeof accessToken==='undefined'||!accessToken)return;
   if((mlPastaCarregada&&!force)||mlCarregandoPasta)return;
   mlCarregandoPasta=true;
-  const st=document.getElementById('ml-pasta-status'); if(st)st.textContent='🔄 Lendo pasta de modelos…';
+  const st=document.getElementById('ml-pasta-status'); if(st)st.textContent='🔄 Lendo pastas de modelos…';
   try{
-    const q=encodeURIComponent(`'${MODELOS_LAUDO_FOLDER_ID}' in parents and trashed=false`);
-    const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
-    if(!r.ok){if(st)st.textContent='⚠ Não consegui ler a pasta de modelos.';return;}
-    const d=await r.json();
-    Object.values(MODELOS_LAUDO).forEach(m=>{m.modelo=null;m.anexo=null;m.modeloUrl=null;m.anexoUrl=null;m.nomeModelo='';m.nomeAnexo='';});
-    let n=0;
-    (d.files||[]).forEach(f=>{
+    Object.values(MODELOS_LAUDO).forEach(m=>{m.modelo=null;m.modeloUrl=null;m.nomeModelo='';});
+    Object.values(MODELOS_ANEXO).forEach(m=>{m.modelo=null;m.modeloUrl=null;m.nome='';});
+    const laudos=await mlListarPasta(MODELOS_LAUDO_FOLDER_ID);
+    laudos.forEach(f=>{
       if(f.mimeType==='application/vnd.google-apps.folder')return;
-      const cod=mlCodigoDoArquivo(f.name); if(!cod)return;
-      const m=MODELOS_LAUDO[cod];
-      if(mlEhAnexo(f.name)){m.anexo=f.id;m.anexoUrl=mlDownloadUrl(f);m.nomeAnexo=f.name;}
-      else{m.modelo=f.id;m.modeloUrl=mlDownloadUrl(f);m.nomeModelo=f.name;}
-      n++;
+      const cod=mlCodigoDoArquivo(f.name); if(!cod||!MODELOS_LAUDO[cod])return;
+      MODELOS_LAUDO[cod].modelo=f.id;MODELOS_LAUDO[cod].modeloUrl=mlDownloadUrl(f);MODELOS_LAUDO[cod].nomeModelo=f.name;
+    });
+    const anexos=await mlListarPasta(MODELOS_ANEXOS_FOLDER_ID);
+    anexos.forEach(f=>{
+      if(f.mimeType==='application/vnd.google-apps.folder')return;
+      const cod=mlCodigoAnexo(f.name); if(!cod||!MODELOS_ANEXO[cod])return;
+      MODELOS_ANEXO[cod].modelo=f.id;MODELOS_ANEXO[cod].modeloUrl=mlDownloadUrl(f);MODELOS_ANEXO[cod].nome=f.name;
     });
     mlPastaCarregada=true;
-    const anexados=Object.values(MODELOS_LAUDO).filter(m=>m.modelo).length;
-    if(st)st.textContent=`✓ ${anexados}/24 modelos anexados (${n} arquivo(s) na pasta).`;
+    const nl=Object.values(MODELOS_LAUDO).filter(m=>m.modelo).length;
+    const na=Object.values(MODELOS_ANEXO).filter(m=>m.modelo).length;
+    if(st)st.textContent=`✓ ${nl}/24 laudos · ${na}/4 anexos anexados.`;
     mlRenderLista();
     if(mlUltimaRes)mlRenderResultado(mlUltimaRes);
-  }catch(e){if(st)st.textContent='⚠ Erro ao ler a pasta.';}
+  }catch(e){if(st)st.textContent='⚠ Não consegui ler as pastas de modelos.';}
   finally{mlCarregandoPasta=false;}
 }
-function mlBotoesDownload(fam){
-  const m=MODELOS_LAUDO[fam];
+function mlBotoesDownload(code){
+  const m=MODELOS_LAUDO[code];
+  const ax=MODELOS_ANEXO[code.split('_')[0]];
   const btn=(url,txt)=>url
     ? `<a class="primary-btn btn-blue" href="${url}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">${txt}</a>`
     : `<button class="primary-btn" style="background:var(--gray3);color:var(--muted);cursor:not-allowed" disabled>${txt} — ainda não anexado</button>`;
-  return `<div class="ml-dl">${btn(m.modeloUrl,'⬇ Baixar modelo')}${btn(m.anexoUrl,'⬇ Baixar anexos')}</div>`;
+  return `<div class="ml-dl">${btn(m.modeloUrl,'⬇ Baixar laudo')}${btn(ax&&ax.modeloUrl,'⬇ Baixar anexo')}</div>`;
 }
 function mlRenderResultado(code){
   const box=document.getElementById('ml-resultado');
@@ -1561,11 +1595,18 @@ function mlRenderResultado(code){
 }
 function mlRefazer(){document.getElementById('ml-resultado').innerHTML='';mlUltimaRes=null;document.getElementById('ml-wizard').scrollIntoView({behavior:'smooth',block:'start'});}
 function mlRenderLista(){
-  document.getElementById('ml-lista-body').innerHTML=Object.values(MODELOS_LAUDO).map(m=>{
-    const on=!!m.modelo;
-    const dl=(m.modeloUrl?`<a class="primary-btn btn-blue" href="${m.modeloUrl}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Modelo</a>`:'')
-            +(m.anexoUrl?` <a class="primary-btn btn-blue" href="${m.anexoUrl}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Anexos</a>`:'');
-    return `<tr><td><b>${m.label}</b></td><td style="color:var(--muted)">${m.quando}</td><td><span class="ml-pill ${on?'on':'off'}">${on?'anexado':'pendente'}</span></td><td>${dl}</td></tr>`;
+  const dl=(url,txt)=>`<a class="primary-btn btn-blue" href="${url}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">${txt}</a>`;
+  const pill=on=>`<span class="ml-pill ${on?'on':'off'}">${on?'anexado':'pendente'}</span>`;
+  const ab=document.getElementById('ml-lista-anexos-body');
+  if(ab)ab.innerHTML=Object.values(MODELOS_ANEXO).map(a=>
+    `<tr><td style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px"><b>${a.label}</b></td><td style="color:var(--muted)">${a.quando}</td><td>${pill(!!a.modelo)}</td><td>${a.modeloUrl?dl(a.modeloUrl,'⬇ Anexo'):'—'}</td></tr>`
+  ).join('');
+  const lb=document.getElementById('ml-lista-body');
+  if(lb)lb.innerHTML=Object.values(MODELOS_LAUDO).map(m=>{
+    const ax=MODELOS_ANEXO[m.label.split('_')[0]];
+    const laudoCell=`${pill(!!m.modelo)}${m.modeloUrl?' '+dl(m.modeloUrl,'⬇'):''}`;
+    const anexoCell=(ax&&ax.modeloUrl)?dl(ax.modeloUrl,'⬇ '+ax.label):'<span class="ml-pill off">pendente</span>';
+    return `<tr><td style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px"><b>${m.label}</b></td><td style="color:var(--muted)">${m.quando}</td><td>${laudoCell}</td><td>${anexoCell}</td></tr>`;
   }).join('');
 }
 
