@@ -554,7 +554,7 @@ tbody tr:nth-child(even){background:#fafafa}
                 <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
               </div>
             </div>
-            <div class="ml-note" style="margin:0 0 14px">📁 <b>Laudos</b> (24) na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de laudos</a>, nomeados pelo código (ex.: <b>EXP-TJLP_SaqEsp_CD.docx</b>). <b>Anexos</b> (4) na <a href="https://drive.google.com/drive/folders/1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO" target="_blank" rel="noopener">pasta de anexos</a>, nomeados pela tese: <b>OF.docx</b>, <b>EXP.docx</b>, <b>TJLP.docx</b>, <b>EXP-TJLP.docx</b>. Clique em <b>🔄 Atualizar</b> após subir.</div>
+            <div class="ml-note" style="margin:0 0 14px">📁 <b>Laudos</b> (24) na <a href="https://drive.google.com/drive/folders/1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ" target="_blank" rel="noopener">pasta de laudos</a>, nomeados pelo código (ex.: <b>EXP-TJLP_SaqEsp_CD.docx</b>). <b>Anexos</b> (4) na <a href="https://drive.google.com/drive/folders/1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO" target="_blank" rel="noopener">pasta de anexos</a>, nomeados pela tese — o download é o <b>.pdf</b> (ex.: <b>OF.pdf</b>, <b>EXP.pdf</b>, <b>TJLP.pdf</b>, <b>EXP-TJLP.pdf</b>). Clique em <b>🔄 Atualizar</b> após subir.</div>
 
             <div class="ml-qlbl" style="font-size:12px;margin:6px 0 6px">Anexos (por tese) — 4</div>
             <div class="tbl-wrap" style="margin-bottom:18px"><table><thead><tr><th>Tese</th><th>Quando usar</th><th>Status</th><th>Anexo</th></tr></thead><tbody id="ml-lista-anexos-body"></tbody></table></div>
@@ -1562,6 +1562,7 @@ async function mlCarregarPastaModelos(force){
     const anexos=await mlListarPasta(MODELOS_ANEXOS_FOLDER_ID);
     anexos.forEach(f=>{
       if(f.mimeType==='application/vnd.google-apps.folder')return;
+      if(!/\.pdf$/i.test(f.name))return; // anexo: baixa o PDF (mesmo nome, .pdf)
       const cod=mlCodigoAnexo(f.name); if(!cod||!MODELOS_ANEXO[cod])return;
       MODELOS_ANEXO[cod].modelo=f.id;MODELOS_ANEXO[cod].modeloUrl=mlDownloadUrl(f);MODELOS_ANEXO[cod].nome=f.name;
     });
