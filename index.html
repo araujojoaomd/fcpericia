@@ -578,7 +578,7 @@ tbody tr:nth-child(even){background:#fafafa}
               </div>
             </div>
             <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, prompts…), em <b>qualquer formato</b> (.docx, .pdf, .md, .txt…). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>. Clique em <b>✏️ Editar</b> para preencher a <b>Descrição</b> (aparece na lista) e o <b>Como usar</b> (aparece ao passar o mouse no <b>ℹ️</b> ao lado do nome) — tudo salvo aqui no sistema. Arquivos <b>.md/.txt</b> ganham o botão <b>📋 Copiar</b> (pra colar o prompt direto numa conversa).</div>
-            <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Descrição</th><th>Formato</th><th>Ações</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
+            <div class="tbl-wrap"><table><thead><tr><th>Arquivo</th><th>Descrição</th><th>Formato</th><th>Ações</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
           </div>
         </div>
         </div>
@@ -632,6 +632,17 @@ tbody tr:nth-child(even){background:#fafafa}
     <div class="modal-footer">
       <button class="modal-cancel" onclick="fecharModal('modal-outro-desc')">Cancelar</button>
       <button class="modal-save btn-blue" id="od-salvar" onclick="mlSalvarOutroMeta()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COMO USAR -->
+<div class="modal-overlay" id="modal-comousar">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><div class="modal-title" id="cu-titulo">Como usar</div><button class="modal-close" onclick="fecharModal('modal-comousar')">✕</button></div>
+    <div id="cu-texto" style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:var(--text);padding:4px 2px"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="fecharModal('modal-comousar')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1682,12 +1693,19 @@ function mlRenderOutros(){
   body.innerHTML=mlOutrosFiles.map(f=>{
     const ext=mlExt(f.name);
     const meta=mlParseMeta(f.description);
-    const info=meta.como?` <span title="${mlAttr(meta.como)}" style="cursor:help">ℹ️</span>`:'';
+    const info=meta.como?` <button onclick="mlVerComoUsar('${f.id}')" title="Como usar" style="border:none;background:#dbeafe;color:#2563eb;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;font-weight:800;padding:0;vertical-align:middle">?</button>`:'';
     const desc=meta.desc?mlEsc(meta.desc):'<span style="color:var(--faint)">—</span>';
     const copiar=/^(MD|TXT|MARKDOWN)$/.test(ext)?`<button class="primary-btn btn-purple" onclick="mlCopiarOutro('${f.id}',this)" style="font-size:11px;padding:5px 10px;margin-right:6px">📋 Copiar</button>`:'';
     const editar=`<button class="primary-btn" onclick="mlEditarOutro('${f.id}')" title="Editar descrição e como usar" style="font-size:11px;padding:5px 10px;margin-right:6px;background:var(--gray2);color:var(--navy)">✏️ Editar</button>`;
     return `<tr><td>${mlEsc(f.name.replace(/\.[^.]+$/,''))}${info}</td><td style="color:var(--muted);max-width:360px">${desc}</td><td style="color:var(--muted)">${ext}</td><td style="white-space:nowrap">${editar}${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
   }).join('');
+}
+function mlVerComoUsar(id){
+  const f=mlOutrosFiles.find(x=>x.id===id); if(!f)return;
+  const meta=mlParseMeta(f.description);
+  document.getElementById('cu-titulo').textContent='Como usar — '+f.name.replace(/\.[^.]+$/,'');
+  document.getElementById('cu-texto').textContent=meta.como||'(sem orientação)';
+  abrirModal('modal-comousar');
 }
 let mlEditOutroId=null;
 function mlEditarOutro(id){
