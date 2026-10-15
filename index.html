@@ -577,7 +577,7 @@ tbody tr:nth-child(even){background:#fafafa}
                 <button class="primary-btn btn-blue" onclick="mlCarregarOutros(true)">🔄 Atualizar</button>
               </div>
             </div>
-            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, prompts…), em <b>qualquer formato</b> (.docx, .pdf, .md, .txt…). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>. Clique em <b>✏️ Editar</b> para preencher a <b>Descrição</b> (aparece na lista) e o <b>Como usar</b> (aparece ao passar o mouse no <b>ℹ️</b> ao lado do nome) — tudo salvo aqui no sistema. Arquivos <b>.md/.txt</b> ganham o botão <b>📋 Copiar</b> (pra colar o prompt direto numa conversa).</div>
+            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, prompts…), em <b>qualquer formato</b> (.docx, .pdf, .md, .txt…). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>. Clique em <b>✏️ Editar</b> para definir o <b>Grupo</b> (etapa), a <b>Descrição</b> (aparece na lista), o <b>Como usar</b> (no botão <b>?</b>) e, se for o caso, marcar o arquivo como <b>associado</b> a um documento principal (aparece recuado com 📎). Arquivos <b>.md/.txt</b> ganham o botão <b>📋 Copiar</b>.</div>
             <div class="tbl-wrap"><table><thead><tr><th>Arquivo</th><th>Descrição</th><th>Formato</th><th>Ações</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
           </div>
         </div>
@@ -626,6 +626,8 @@ tbody tr:nth-child(even){background:#fafafa}
     <div class="modal-head"><div class="modal-title">Editar modelo</div><button class="modal-close" onclick="fecharModal('modal-outro-desc')">✕</button></div>
     <div class="form-grid">
       <div class="form-field"><label class="field-label">Arquivo</label><div class="field-readonly" id="od-nome"></div></div>
+      <div class="form-field half"><label class="field-label">Grupo <span style="color:var(--faint);font-weight:400">(etapa)</span></label><input class="field-input" id="od-grupo" list="od-grupos-dl" placeholder="Ex.: Laudo Pericial"><datalist id="od-grupos-dl"></datalist></div>
+      <div class="form-field half"><label class="field-label">Associado a <span style="color:var(--faint);font-weight:400">(opcional)</span></label><select class="field-select" id="od-assoc"><option value="">— nenhum (documento principal) —</option></select></div>
       <div class="form-field"><label class="field-label">Descrição <span style="color:var(--faint);font-weight:400">(aparece na lista)</span></label><input class="field-input" id="od-desc" placeholder="Ex.: Papel timbrado oficial do perito"></div>
       <div class="form-field"><label class="field-label">Como usar <span style="color:var(--faint);font-weight:400">(aparece ao passar o mouse no ℹ️)</span></label><textarea class="field-input" id="od-como" rows="4" style="resize:vertical;font-family:inherit" placeholder="Explique quando e como usar este arquivo…"></textarea></div>
     </div>
@@ -1680,25 +1682,57 @@ async function mlCarregarOutros(force){
 function mlEsc(s){return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
 function mlParseMeta(description){
   const s=(description||'').trim();
-  if(!s)return{desc:'',como:''};
-  if(s[0]==='{'){try{const o=JSON.parse(s);if(o&&typeof o==='object')return{desc:o.desc||'',como:o.como||''};}catch(e){}}
-  return{desc:s,como:''}; // legado: texto puro = descrição
+  let o={desc:'',como:'',grupo:'',assoc:''};
+  if(s){
+    if(s[0]==='{'){try{const j=JSON.parse(s);if(j&&typeof j==='object')o={desc:j.desc||'',como:j.como||'',grupo:j.grupo||'',assoc:j.assoc||''};}catch(e){o.desc=s;}}
+    else o.desc=s; // legado: texto puro = descrição
+  }
+  if(!o.grupo)o.grupo='Geral';
+  return o;
 }
-function mlMetaStr(desc,como){return JSON.stringify({desc:desc||'',como:como||''});}
+function mlMetaStr(desc,como,grupo,assoc){return JSON.stringify({desc:desc||'',como:como||'',grupo:grupo||'Geral',assoc:assoc||''});}
 function mlAttr(s){return mlEsc(s).replace(/"/g,'&quot;');}
+const ML_GRUPOS_PADRAO=['Geral','Laudo Pericial','Esclarecimentos Complementares'];
+function mlGruposExistentes(){
+  const set=new Set(ML_GRUPOS_PADRAO);
+  mlOutrosFiles.forEach(f=>{const g=mlParseMeta(f.description).grupo;if(g)set.add(g);});
+  return [...set];
+}
+function mlFileRow(f,isAssoc){
+  const ext=mlExt(f.name);
+  const meta=mlParseMeta(f.description);
+  const info=meta.como?` <button onclick="mlVerComoUsar('${f.id}')" title="Como usar" style="border:none;background:#dbeafe;color:#2563eb;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;font-weight:800;padding:0;vertical-align:middle">?</button>`:'';
+  const desc=meta.desc?mlEsc(meta.desc):'<span style="color:var(--faint)">—</span>';
+  const copiar=/^(MD|TXT|MARKDOWN)$/.test(ext)?`<button class="primary-btn btn-purple" onclick="mlCopiarOutro('${f.id}',this)" style="font-size:11px;padding:5px 10px;margin-right:6px">📋 Copiar</button>`:'';
+  const editar=`<button class="primary-btn" onclick="mlEditarOutro('${f.id}')" title="Editar" style="font-size:11px;padding:5px 10px;margin-right:6px;background:var(--gray2);color:var(--navy)">✏️ Editar</button>`;
+  const nome=`${isAssoc?'<span style="color:var(--faint)" title="associado">📎</span> ':''}${mlEsc(f.name.replace(/\.[^.]+$/,''))}${info}`;
+  return `<tr><td style="${isAssoc?'padding-left:30px':''}">${nome}</td><td style="color:var(--muted);max-width:360px">${desc}</td><td style="color:var(--muted)">${ext}</td><td style="white-space:nowrap">${editar}${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
+}
 function mlRenderOutros(){
   const body=document.getElementById('ml-outros-body'); if(!body)return;
   if(!MODELOS_OUTROS_FOLDER_ID){body.innerHTML='<tr><td colspan="4" style="color:var(--faint);padding:16px">Pasta de "Outros modelos" ainda não configurada.</td></tr>';return;}
   if(!mlOutrosFiles.length){body.innerHTML='<tr><td colspan="4" style="color:var(--faint);padding:16px">Nenhum arquivo na pasta.</td></tr>';return;}
-  body.innerHTML=mlOutrosFiles.map(f=>{
-    const ext=mlExt(f.name);
-    const meta=mlParseMeta(f.description);
-    const info=meta.como?` <button onclick="mlVerComoUsar('${f.id}')" title="Como usar" style="border:none;background:#dbeafe;color:#2563eb;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;font-weight:800;padding:0;vertical-align:middle">?</button>`:'';
-    const desc=meta.desc?mlEsc(meta.desc):'<span style="color:var(--faint)">—</span>';
-    const copiar=/^(MD|TXT|MARKDOWN)$/.test(ext)?`<button class="primary-btn btn-purple" onclick="mlCopiarOutro('${f.id}',this)" style="font-size:11px;padding:5px 10px;margin-right:6px">📋 Copiar</button>`:'';
-    const editar=`<button class="primary-btn" onclick="mlEditarOutro('${f.id}')" title="Editar descrição e como usar" style="font-size:11px;padding:5px 10px;margin-right:6px;background:var(--gray2);color:var(--navy)">✏️ Editar</button>`;
-    return `<tr><td>${mlEsc(f.name.replace(/\.[^.]+$/,''))}${info}</td><td style="color:var(--muted);max-width:360px">${desc}</td><td style="color:var(--muted)">${ext}</td><td style="white-space:nowrap">${editar}${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
-  }).join('');
+  const metaById={}; mlOutrosFiles.forEach(f=>metaById[f.id]=mlParseMeta(f.description));
+  const existe=new Set(mlOutrosFiles.map(f=>f.id));
+  const ehAssoc=f=>{const a=metaById[f.id].assoc;return a&&existe.has(a)&&a!==f.id;};
+  const principais=mlOutrosFiles.filter(f=>!ehAssoc(f));
+  const assocDe={}; mlOutrosFiles.forEach(f=>{if(ehAssoc(f)){const a=metaById[f.id].assoc;(assocDe[a]=assocDe[a]||[]).push(f);}});
+  const grupoDe=f=>metaById[f.id].grupo||'Geral';
+  const grupos=[...new Set(principais.map(grupoDe))].sort((a,b)=>{
+    const ia=ML_GRUPOS_PADRAO.indexOf(a),ib=ML_GRUPOS_PADRAO.indexOf(b);
+    if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return -1; if(ib>=0)return 1;
+    return a.localeCompare(b,'pt-BR');
+  });
+  const ordNome=(a,b)=>a.name.localeCompare(b.name,'pt-BR');
+  let html='';
+  grupos.forEach(g=>{
+    html+=`<tr><td colspan="4" style="background:var(--gray2);color:var(--navy);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px">${mlEsc(g)}</td></tr>`;
+    principais.filter(f=>grupoDe(f)===g).sort(ordNome).forEach(p=>{
+      html+=mlFileRow(p,false);
+      (assocDe[p.id]||[]).sort(ordNome).forEach(a=>{html+=mlFileRow(a,true);});
+    });
+  });
+  body.innerHTML=html;
 }
 function mlVerComoUsar(id){
   const f=mlOutrosFiles.find(x=>x.id===id); if(!f)return;
@@ -1715,15 +1749,23 @@ function mlEditarOutro(id){
   document.getElementById('od-nome').textContent=f.name;
   document.getElementById('od-desc').value=meta.desc;
   document.getElementById('od-como').value=meta.como;
+  document.getElementById('od-grupos-dl').innerHTML=mlGruposExistentes().map(g=>`<option value="${mlAttr(g)}"></option>`).join('');
+  document.getElementById('od-grupo').value=meta.grupo||'Geral';
+  const opts=mlOutrosFiles.filter(x=>x.id!==id && !mlParseMeta(x.description).assoc)
+    .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
+    .map(x=>`<option value="${x.id}" ${meta.assoc===x.id?'selected':''}>${mlEsc(x.name.replace(/\.[^.]+$/,''))}</option>`).join('');
+  document.getElementById('od-assoc').innerHTML='<option value="">— nenhum (documento principal) —</option>'+opts;
   abrirModal('modal-outro-desc');
 }
 async function mlSalvarOutroMeta(){
   const id=mlEditOutroId; if(!id)return;
   const desc=document.getElementById('od-desc').value.trim();
   const como=document.getElementById('od-como').value.trim();
+  const grupo=document.getElementById('od-grupo').value.trim()||'Geral';
+  const assoc=document.getElementById('od-assoc').value;
   const btn=document.getElementById('od-salvar'); btn.disabled=true; btn.textContent='⏳ Salvando…';
   try{
-    const body=mlMetaStr(desc,como);
+    const body=mlMetaStr(desc,como,grupo,assoc);
     const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?supportsAllDrives=true&fields=id,description`,{method:'PATCH',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({description:body})});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const f=mlOutrosFiles.find(x=>x.id===id); if(f)f.description=body;
