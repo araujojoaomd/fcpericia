@@ -576,7 +576,7 @@ tbody tr:nth-child(even){background:#fafafa}
                 <button class="primary-btn btn-blue" onclick="mlCarregarOutros(true)">🔄 Atualizar</button>
               </div>
             </div>
-            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, etc.). Suba os arquivos na pasta de <b>Outros modelos</b> e clique em <b>🔄 Atualizar</b>.</div>
+            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, etc.). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>.</div>
             <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Formato</th><th>Baixar</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
           </div>
         </div>
@@ -934,7 +934,7 @@ const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1
 const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
 const MODELOS_LAUDO_FOLDER_ID='1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ';
 const MODELOS_ANEXOS_FOLDER_ID='1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO';
-const MODELOS_OUTROS_FOLDER_ID=''; // TODO: pasta de "Outros modelos" (PASEP)
+const MODELOS_OUTROS_FOLDER_ID='120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1'; // pasta de "Outros modelos" (PASEP)
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
