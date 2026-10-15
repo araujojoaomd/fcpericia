@@ -573,11 +573,12 @@ tbody tr:nth-child(even){background:#fafafa}
               <div class="ml-qlbl" style="margin:0">Outros modelos (PASEP)</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <span id="ml-outros-status" style="font-size:11px;color:var(--faint)"></span>
+                <a class="primary-btn btn-purple" href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener" style="text-decoration:none">📂 Abrir pasta</a>
                 <button class="primary-btn btn-blue" onclick="mlCarregarOutros(true)">🔄 Atualizar</button>
               </div>
             </div>
-            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, etc.). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>.</div>
-            <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Formato</th><th>Baixar</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
+            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, prompts…), em <b>qualquer formato</b> (.docx, .pdf, .md, .txt…). Suba os arquivos na <a href="https://drive.google.com/drive/folders/120DaH_Q4SwBa08j46ByZoIG1hSKjfD-1" target="_blank" rel="noopener">pasta de Outros modelos</a> e clique em <b>🔄 Atualizar</b>. A coluna <b>Como usar</b> vem da <b>Descrição</b> do arquivo no Drive (no Drive: clique no arquivo → <b>ⓘ Detalhes</b> → <b>Adicionar uma descrição</b>). Arquivos <b>.md/.txt</b> ganham o botão <b>📋 Copiar</b> (pra colar o prompt direto numa conversa).</div>
+            <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Como usar</th><th>Formato</th><th>Ações</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
           </div>
         </div>
         </div>
@@ -1560,7 +1561,7 @@ function mlDownloadUrl(f){
 }
 async function mlListarPasta(folderId){
   const q=encodeURIComponent(`'${folderId}' in parents and trashed=false`);
-  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,description)&pageSize=200&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
   if(!r.ok)throw new Error('drive '+r.status);
   return (await r.json()).files||[];
 }
@@ -1649,11 +1650,28 @@ async function mlCarregarOutros(force){
   }catch(e){if(st)st.textContent='⚠ Não consegui ler a pasta.';}
   finally{mlCarregandoOutros=false;}
 }
+function mlEsc(s){return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
 function mlRenderOutros(){
   const body=document.getElementById('ml-outros-body'); if(!body)return;
-  if(!MODELOS_OUTROS_FOLDER_ID){body.innerHTML='<tr><td colspan="3" style="color:var(--faint);padding:16px">Pasta de "Outros modelos" ainda não configurada.</td></tr>';return;}
-  if(!mlOutrosFiles.length){body.innerHTML='<tr><td colspan="3" style="color:var(--faint);padding:16px">Nenhum arquivo na pasta.</td></tr>';return;}
-  body.innerHTML=mlOutrosFiles.map(f=>`<tr><td>${f.name.replace(/\.[^.]+$/,'')}</td><td style="color:var(--muted)">${mlExt(f.name)}</td><td><a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`).join('');
+  if(!MODELOS_OUTROS_FOLDER_ID){body.innerHTML='<tr><td colspan="4" style="color:var(--faint);padding:16px">Pasta de "Outros modelos" ainda não configurada.</td></tr>';return;}
+  if(!mlOutrosFiles.length){body.innerHTML='<tr><td colspan="4" style="color:var(--faint);padding:16px">Nenhum arquivo na pasta.</td></tr>';return;}
+  body.innerHTML=mlOutrosFiles.map(f=>{
+    const ext=mlExt(f.name);
+    const desc=f.description?mlEsc(f.description):'<span style="color:var(--faint)">—</span>';
+    const copiar=/^(MD|TXT|MARKDOWN)$/.test(ext)?`<button class="primary-btn btn-purple" onclick="mlCopiarOutro('${f.id}',this)" style="font-size:11px;padding:5px 10px;margin-right:6px">📋 Copiar</button>`:'';
+    return `<tr><td>${mlEsc(f.name.replace(/\.[^.]+$/,''))}</td><td style="color:var(--muted);max-width:320px">${desc}</td><td style="color:var(--muted)">${ext}</td><td style="white-space:nowrap">${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
+  }).join('');
+}
+async function mlCopiarOutro(id,btn){
+  const t0=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳';}
+  try{
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const txt=await r.text();
+    await navigator.clipboard.writeText(txt);
+    toast('✅ Conteúdo copiado!');
+  }catch(e){toast('❌ Não consegui copiar: '+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent=t0||'📋 Copiar';}}
 }
 
 // ─── CANCELAMENTO DE PROCESSO ─────────────────────────────────────────────────
