@@ -506,7 +506,8 @@ tbody tr:nth-child(even){background:#fafafa}
         <div class="ml-tema"><span class="ml-tema-lbl">Tema</span><span class="ml-tema-chip">PASEP</span></div>
         <div class="subtabs">
           <button class="subtab on" data-md="pasep" onclick="mdTab('pasep')">Simulador do modelo de laudo</button>
-          <button class="subtab" data-md="todos" onclick="mdTab('todos')">Todos os modelos</button>
+          <button class="subtab" data-md="todos" onclick="mdTab('todos')">Modelos de Laudos</button>
+          <button class="subtab" data-md="outros" onclick="mdTab('outros')">Outros modelos</button>
         </div>
 
         <div id="md-pasep" class="md-sec">
@@ -548,7 +549,7 @@ tbody tr:nth-child(even){background:#fafafa}
         <div class="ml-wrap">
           <div class="ml-card">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-              <div class="ml-qlbl" style="margin:0">PASEP — todos os modelos</div>
+              <div class="ml-qlbl" style="margin:0">Modelos de Laudos (PASEP)</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <span id="ml-pasta-status" style="font-size:11px;color:var(--faint)"></span>
                 <button class="primary-btn btn-blue" onclick="mlCarregarPastaModelos(true)">🔄 Atualizar</button>
@@ -561,6 +562,22 @@ tbody tr:nth-child(even){background:#fafafa}
 
             <div class="ml-qlbl" style="font-size:12px;margin:6px 0 6px">Laudos — 24</div>
             <div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Quando usar</th><th>Laudo</th><th>Anexo (tese)</th></tr></thead><tbody id="ml-lista-body"></tbody></table></div>
+          </div>
+        </div>
+        </div>
+
+        <div id="md-outros" class="md-sec" style="display:none">
+        <div class="ml-wrap">
+          <div class="ml-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+              <div class="ml-qlbl" style="margin:0">Outros modelos (PASEP)</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span id="ml-outros-status" style="font-size:11px;color:var(--faint)"></span>
+                <button class="primary-btn btn-blue" onclick="mlCarregarOutros(true)">🔄 Atualizar</button>
+              </div>
+            </div>
+            <div class="ml-note" style="margin:0 0 14px">📁 Modelos diversos do PASEP (diligência, quesitos, petições, etc.). Suba os arquivos na pasta de <b>Outros modelos</b> e clique em <b>🔄 Atualizar</b>.</div>
+            <div class="tbl-wrap"><table><thead><tr><th>Modelo</th><th>Formato</th><th>Baixar</th></tr></thead><tbody id="ml-outros-body"></tbody></table></div>
           </div>
         </div>
         </div>
@@ -917,6 +934,7 @@ const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1
 const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
 const MODELOS_LAUDO_FOLDER_ID='1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ';
 const MODELOS_ANEXOS_FOLDER_ID='1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO';
+const MODELOS_OUTROS_FOLDER_ID=''; // TODO: pasta de "Outros modelos" (PASEP)
 const REDIRECT=location.href.split('?')[0].split('#')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const BASE_URL=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -1493,6 +1511,7 @@ function mdTab(sec){
   const p=document.getElementById('md-'+sec);if(p)p.style.display='block';
   const b=document.querySelector(`#tab-modelos .subtab[data-md="${sec}"]`);if(b)b.classList.add('on');
   if(sec==='todos'){mlCarregarPastaModelos();mlRenderLista();}
+  if(sec==='outros'){mlCarregarOutros();mlRenderOutros();}
 }
 function mlTeses(){
   const e=document.getElementById('ml-t-expurgos').checked, t=document.getElementById('ml-t-tjlp').checked;
@@ -1609,6 +1628,32 @@ function mlRenderLista(){
     const anexoCell=(ax&&ax.modeloUrl)?dl(ax.modeloUrl,'⬇ '+ax.label):'<span class="ml-pill off">pendente</span>';
     return `<tr><td style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px"><b>${m.label}</b></td><td style="color:var(--muted)">${m.quando}</td><td>${laudoCell}</td><td>${anexoCell}</td></tr>`;
   }).join('');
+}
+
+// ── Outros modelos (lista livre de arquivos de uma pasta) ──
+let mlOutrosFiles=[], mlOutrosCarregado=false, mlCarregandoOutros=false;
+function mlExt(nome){const m=(nome||'').match(/\.([^.]+)$/);return m?m[1].toUpperCase():'—';}
+async function mlCarregarOutros(force){
+  const st=document.getElementById('ml-outros-status');
+  if(!MODELOS_OUTROS_FOLDER_ID){if(st)st.textContent='pasta ainda não configurada';mlRenderOutros();return;}
+  if(typeof accessToken==='undefined'||!accessToken)return;
+  if((mlOutrosCarregado&&!force)||mlCarregandoOutros)return;
+  mlCarregandoOutros=true;
+  if(st)st.textContent='🔄 Lendo pasta…';
+  try{
+    const files=await mlListarPasta(MODELOS_OUTROS_FOLDER_ID);
+    mlOutrosFiles=(files||[]).filter(f=>f.mimeType!=='application/vnd.google-apps.folder');
+    mlOutrosCarregado=true;
+    if(st)st.textContent=`✓ ${mlOutrosFiles.length} modelo(s).`;
+    mlRenderOutros();
+  }catch(e){if(st)st.textContent='⚠ Não consegui ler a pasta.';}
+  finally{mlCarregandoOutros=false;}
+}
+function mlRenderOutros(){
+  const body=document.getElementById('ml-outros-body'); if(!body)return;
+  if(!MODELOS_OUTROS_FOLDER_ID){body.innerHTML='<tr><td colspan="3" style="color:var(--faint);padding:16px">Pasta de "Outros modelos" ainda não configurada.</td></tr>';return;}
+  if(!mlOutrosFiles.length){body.innerHTML='<tr><td colspan="3" style="color:var(--faint);padding:16px">Nenhum arquivo na pasta.</td></tr>';return;}
+  body.innerHTML=mlOutrosFiles.map(f=>`<tr><td>${f.name.replace(/\.[^.]+$/,'')}</td><td style="color:var(--muted)">${mlExt(f.name)}</td><td><a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`).join('');
 }
 
 // ─── CANCELAMENTO DE PROCESSO ─────────────────────────────────────────────────
