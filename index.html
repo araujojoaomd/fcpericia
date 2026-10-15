@@ -627,7 +627,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <div class="form-grid">
       <div class="form-field"><label class="field-label">Arquivo</label><div class="field-readonly" id="od-nome"></div></div>
       <div class="form-field half"><label class="field-label">Grupo <span style="color:var(--faint);font-weight:400">(etapa)</span></label><input class="field-input" id="od-grupo" list="od-grupos-dl" placeholder="Ex.: Laudo Pericial"><datalist id="od-grupos-dl"></datalist></div>
-      <div class="form-field half"><label class="field-label">Associado a <span style="color:var(--faint);font-weight:400">(opcional)</span></label><select class="field-select" id="od-assoc"><option value="">— nenhum (documento principal) —</option></select></div>
+      <div class="form-field half"><label class="field-label">Associado a <span style="color:var(--faint);font-weight:400">(opcional — fica junto do principal, recuado com 📎)</span></label><select class="field-select" id="od-assoc"><option value="">— nenhum (documento principal) —</option></select></div>
       <div class="form-field"><label class="field-label">Descrição <span style="color:var(--faint);font-weight:400">(aparece na lista)</span></label><input class="field-input" id="od-desc" placeholder="Ex.: Papel timbrado oficial do perito"></div>
       <div class="form-field"><label class="field-label">Como usar <span style="color:var(--faint);font-weight:400">(aparece ao passar o mouse no ℹ️)</span></label><textarea class="field-input" id="od-como" rows="4" style="resize:vertical;font-family:inherit" placeholder="Explique quando e como usar este arquivo…"></textarea></div>
     </div>
@@ -1698,16 +1698,23 @@ function mlGruposExistentes(){
   mlOutrosFiles.forEach(f=>{const g=mlParseMeta(f.description).grupo;if(g)set.add(g);});
   return [...set];
 }
-function mlFileRow(f,isAssoc){
+function mlFileRow(f,opts){
+  opts=opts||{};
+  const isAssoc=!!opts.assoc, bundle=!!opts.bundle;
   const ext=mlExt(f.name);
   const meta=mlParseMeta(f.description);
   const info=meta.como?` <button onclick="mlVerComoUsar('${f.id}')" title="Como usar" style="border:none;background:#dbeafe;color:#2563eb;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;font-weight:800;padding:0;vertical-align:middle">?</button>`:'';
   const desc=meta.desc?mlEsc(meta.desc):'<span style="color:var(--faint)">—</span>';
   const copiar=/^(MD|TXT|MARKDOWN)$/.test(ext)?`<button class="primary-btn btn-purple" onclick="mlCopiarOutro('${f.id}',this)" style="font-size:11px;padding:5px 10px;margin-right:6px">📋 Copiar</button>`:'';
   const editar=`<button class="primary-btn" onclick="mlEditarOutro('${f.id}')" title="Editar" style="font-size:11px;padding:5px 10px;margin-right:6px;background:var(--gray2);color:var(--navy)">✏️ Editar</button>`;
-  const nome=`${isAssoc?'<span style="color:var(--faint)" title="associado">📎</span> ':''}${mlEsc(f.name.replace(/\.[^.]+$/,''))}${info}`;
-  return `<tr><td style="${isAssoc?'padding-left:30px':''}">${nome}</td><td style="color:var(--muted);max-width:360px">${desc}</td><td style="color:var(--muted)">${ext}</td><td style="white-space:nowrap">${editar}${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
+  const stripe=bundle?'box-shadow:inset 3px 0 0 var(--purple);':'';
+  const prefix=isAssoc?'<span style="color:var(--purple)">↳</span> <span title="vai junto com o documento acima">📎</span> ':'';
+  const pad=isAssoc?'padding-left:28px':'';
+  const nome=`${prefix}${mlEsc(f.name.replace(/\.[^.]+$/,''))}${info}${isAssoc?' <span style="font-size:10px;color:var(--faint)">(vai junto)</span>':''}`;
+  return `<tr><td style="${pad};${stripe}">${nome}</td><td style="color:var(--muted);max-width:360px;${stripe}">${desc}</td><td style="color:var(--muted);${stripe}">${ext}</td><td style="white-space:nowrap;${stripe}">${editar}${copiar}<a class="primary-btn btn-blue" href="${mlDownloadUrl(f)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:11px;padding:5px 10px">⬇ Baixar</a></td></tr>`;
 }
+let mlGruposRecolhidos=new Set(), mlGruposRender=[];
+function mlToggleGrupo(gi){const g=mlGruposRender[gi];if(g==null)return;if(mlGruposRecolhidos.has(g))mlGruposRecolhidos.delete(g);else mlGruposRecolhidos.add(g);mlRenderOutros();}
 function mlRenderOutros(){
   const body=document.getElementById('ml-outros-body'); if(!body)return;
   if(!MODELOS_OUTROS_FOLDER_ID){body.innerHTML='<tr><td colspan="4" style="color:var(--faint);padding:16px">Pasta de "Outros modelos" ainda não configurada.</td></tr>';return;}
@@ -1723,13 +1730,19 @@ function mlRenderOutros(){
     if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return -1; if(ib>=0)return 1;
     return a.localeCompare(b,'pt-BR');
   });
+  mlGruposRender=grupos;
   const ordNome=(a,b)=>a.name.localeCompare(b.name,'pt-BR');
   let html='';
-  grupos.forEach(g=>{
-    html+=`<tr><td colspan="4" style="background:var(--gray2);color:var(--navy);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px">${mlEsc(g)}</td></tr>`;
-    principais.filter(f=>grupoDe(f)===g).sort(ordNome).forEach(p=>{
-      html+=mlFileRow(p,false);
-      (assocDe[p.id]||[]).sort(ordNome).forEach(a=>{html+=mlFileRow(a,true);});
+  grupos.forEach((g,gi)=>{
+    const recolhido=mlGruposRecolhidos.has(g);
+    const itens=principais.filter(f=>grupoDe(f)===g).sort(ordNome);
+    const total=itens.reduce((n,p)=>n+1+((assocDe[p.id]||[]).length),0);
+    html+=`<tr><td colspan="4" onclick="mlToggleGrupo(${gi})" style="cursor:pointer;user-select:none;background:var(--gray2);color:var(--navy);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px">${recolhido?'▸':'▾'} ${mlEsc(g)} <span style="color:var(--muted);font-weight:700">· ${total}</span></td></tr>`;
+    if(recolhido)return;
+    itens.forEach(p=>{
+      const kids=(assocDe[p.id]||[]).sort(ordNome);
+      html+=mlFileRow(p,{bundle:kids.length>0});
+      kids.forEach(a=>{html+=mlFileRow(a,{assoc:true,bundle:true});});
     });
   });
   body.innerHTML=html;
