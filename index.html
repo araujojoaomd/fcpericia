@@ -274,6 +274,7 @@ tbody tr:nth-child(even){background:#fafafa}
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
+    <button class="nav-btn" data-tab="motor" onclick="abrirMotor()"><span>∑</span> Motor PASEP</button>
     <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
@@ -291,6 +292,18 @@ tbody tr:nth-child(even){background:#fafafa}
   <div id="main">
     <div id="spinner" class="spinner-wrap"><div class="spinner"></div><div class="spinner-msg" id="spinMsg">Carregando...</div></div>
     <div id="content" style="display:none">
+
+      <div id="tab-motor" class="tab-content" style="display:none">
+        <div class="topbar">
+          <div><div class="page-title">Motor de Cálculo PASEP</div><p class="page-sub" style="margin:2px 0 0">O caso é salvo na pasta do processo no Drive (Motor_PASEP_caso.json), e os apêndices gerados também vão para essa pasta.</p></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select class="filter-select" id="motor-proc" onchange="abrirMotor(this.value)" style="min-width:320px"></select>
+            <button class="act-btn act-gray" onclick="abrirPastaProcesso(document.getElementById('motor-proc').value)">📎 Pasta</button>
+          </div>
+        </div>
+        <div id="motor-vazio" style="padding:40px;text-align:center;color:var(--muted)">Escolha um processo para abrir o Motor de Cálculo PASEP.</div>
+        <iframe id="motor-frame" title="Motor de Cálculo PASEP" style="display:none;width:100%;height:calc(100vh - 120px);border:1px solid var(--border,#e2e8f0);border-radius:10px;background:#fff"></iframe>
+      </div>
 
       <div id="tab-tarefas" class="tab-content" style="display:none">
         <div class="topbar">
@@ -1442,6 +1455,83 @@ async function abrirPastaProcesso(num){
     window.open(`https://drive.google.com/drive/folders/${id}`,'_blank');
   }catch(e){toast('❌ '+e.message,'error');}
 }
+
+
+// ─── MOTOR DE CÁLCULO PASEP (módulo em /motor/, mesma origem) ────────────────
+const MOTOR_URL='motor/index.html';
+const MOTOR_CASO='Motor_PASEP_caso.json';
+const MOTOR_CONFIG='Motor_PASEP_configuracao_equipe.json';
+let motorNum='';
+function motorPopularSelect(){
+  const sel=document.getElementById('motor-proc');if(!sel)return;
+  const lista=processos.filter(p=>!/cancel/i.test(p.etapa_atual||'')).slice().sort((a,b)=>String(a.autor||'').localeCompare(String(b.autor||''),'pt-BR'));
+  sel.innerHTML='<option value="">— Escolha o processo —</option>'+lista.map(p=>`<option value="${p.num}"${p.num===motorNum?' selected':''}>${p.autor||'(sem autor)'} — ${p.num}</option>`).join('');
+}
+function abrirMotor(num){
+  switchTab('motor');motorPopularSelect();
+  if(num===undefined){if(!motorNum)return;num=motorNum;}
+  const fr=document.getElementById('motor-frame'),vz=document.getElementById('motor-vazio');
+  if(!num){motorNum='';fr.style.display='none';fr.src='about:blank';vz.style.display='block';return;}
+  if(num===motorNum&&fr.style.display==='block')return;
+  motorNum=num;document.getElementById('motor-proc').value=num;
+  vz.style.display='none';fr.style.display='block';
+  fr.src=`${MOTOR_URL}?fc=1&proc=${encodeURIComponent(num)}&v=${Date.now()}`;
+}
+async function driveBuscarArquivo(nome,parent){
+  const q=encodeURIComponent(`'${parent}' in parents and name='${nome.replace(/'/g,"\\'")}' and trashed=false`);
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);
+  const d=await r.json();return d.files&&d.files.length?d.files[0]:null;
+}
+async function driveLerJSON(id){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  if(!r.ok)handleApiError(r.status);return await r.json();
+}
+async function driveGravar(blob,nome,parentId){
+  const ex=await driveBuscarArquivo(nome,parentId);
+  if(!ex)return await driveUpload(blob,nome,parentId);
+  const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${ex.id}?uploadType=media&fields=id,webViewLink&supportsAllDrives=true`,{method:'PATCH',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':blob.type||'application/octet-stream'},body:blob});
+  if(!r.ok)handleApiError(r.status);return await r.json();
+}
+function motorResponder(src,m){try{src.postMessage(Object.assign({origem:'fc-pericia'},m),location.origin);}catch(e){}}
+window.addEventListener('message',async ev=>{
+  const d=ev.data;if(ev.origin!==location.origin||!d||d.origem!=='motor-pasep')return;
+  const fr=document.getElementById('motor-frame');if(!fr||ev.source!==fr.contentWindow)return;
+  const p=processos.find(x=>x.num===d.num);
+  try{
+    if(d.t==='pronto'){
+      let caso=null,quando=null,config=null;
+      if(DRIVE_ANEXOS_FOLDER_ID&&accessToken){
+        const cf=await driveBuscarArquivo(MOTOR_CONFIG,DRIVE_ANEXOS_FOLDER_ID);if(cf)config=await driveLerJSON(cf.id);
+        if(p){const sub=await driveBuscarSubpasta(nomeSubpasta(p),DRIVE_ANEXOS_FOLDER_ID);
+          if(sub){const f=await driveBuscarArquivo(MOTOR_CASO,sub);if(f){caso=await driveLerJSON(f.id);quando=f.modifiedTime;}}}
+      }
+      motorResponder(ev.source,{t:'carregar',caso,quando,config,proc:p?{num:p.num,autor:p.autor,reu:p.reu,vara:p.vara,resp:p.perito_assistente}:{num:d.num}});
+    }
+    else if(d.t==='salvar'){
+      if(!p)throw new Error('processo não encontrado');
+      const sub=await driveAcharOuCriarSubpasta(p);
+      await driveGravar(new Blob([JSON.stringify(d.caso)],{type:'application/json'}),MOTOR_CASO,sub);
+      motorResponder(ev.source,{t:'salvo',ok:true});
+    }
+    else if(d.t==='arquivo'){
+      if(!p)throw new Error('processo não encontrado');
+      const bin=atob(d.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      const sub=await driveAcharOuCriarSubpasta(p);
+      await driveGravar(new Blob([u],{type:d.mime}),String(d.nome).replace(/[\\/]/g,'_'),sub);
+      motorResponder(ev.source,{t:'arquivo-salvo',ok:true});
+    }
+    else if(d.t==='salvar-config'){
+      await driveGravar(new Blob([JSON.stringify(d.config)],{type:'application/json'}),MOTOR_CONFIG,DRIVE_ANEXOS_FOLDER_ID);
+      motorResponder(ev.source,{t:'config-salva',ok:true});
+    }
+  }catch(e){
+    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva'}[d.t];
+    if(tipo==='carregar')motorResponder(ev.source,{t:'carregar',caso:null,config:null,proc:p?{num:p.num,autor:p.autor,resp:p.perito_assistente}:{num:d.num}});
+    else if(tipo)motorResponder(ev.source,{t:tipo,ok:false,erro:e.message});
+    toast('Motor PASEP: '+e.message,'error');
+  }
+});
 
 // ─── GERAR PETIÇÃO (Apps Script + modelos Google Docs) ────────────────────────
 function estadoDeTribunal(trib){
