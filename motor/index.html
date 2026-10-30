@@ -1474,7 +1474,7 @@ function vAp(v){
   var mem=!!ESTADO.mem,tb=el("tbody"),colsV=mem?cols.concat(["Tratamento","Regra aplicada","Memória de cálculo"]):cols;
   X.forEach(function(x,i){var cells=[x.data,ocultarCod(x.cod)?"":x.cod,x.desc,fmt(x.pgt),pctf(x.atm),pctf(x.j),pctf(x.rla),pctf(x.rac)];if(!ap.banco)cells.push(x.vac===null?"":pctf(x.vac)+"%");cells.push(fmt(x.rd),fmt(x.sf));
     var tds=cells.map(function(t,k){return el("td",{class:k>=3?"num":"",text:t});});
-    if(x.conv)tds[2]=el("td",{},[el("div",{text:x.desc}),el("div",{style:"font-style:italic;color:var(--muted)"+(x.conv.tipo==="banco"?";font-size:.82em":""),text:x.conv.txt})]);
+    if(x.conv){var cc=[];if(x.conv.tipo!=="legal")cc.push(el("div",{text:x.desc}));cc.push(el("div",{style:"font-style:italic"+(x.conv.tipo==="banco"?";color:var(--muted);font-size:.82em":""),text:x.conv.txt}));tds[2]=el("td",{},cc);}
     if(mem){var mm=memoria(ap,i);tds.push(el("td",{},[pillTrat(ap.calc[i],ap.rows[i])]),el("td",{class:"legend",text:mm.regra}),el("td",{class:"legend",style:"font-family:var(--f-num);white-space:nowrap",text:mm.conta}));}
     tb.append(el("tr",{class:x.tag?"convrow":""},tds));});
   v.append(el("div",{class:"panel"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between"},[el("label",{class:"f",style:"min-width:260px"},["Apêndice",sel]),
@@ -1579,14 +1579,15 @@ function gerarPDF(lista){
         willDrawPage:function(){fundo();},
         didParseCell:function(d){
           if(d.section==="body"&&/^-/.test(String(d.cell.raw)))d.cell.styles.textColor=[192,0,0];
-          if(d.section==="body"&&d.column.index===2&&convs[d.row.index]){var ci=convs[d.row.index];
-            doc.setFont("Carlito","normal");doc.setFontSize(fs);var dl=doc.splitTextToSize(String(d.cell.raw),innerDesc);
-            var pfs=ci.tipo==="banco"?Math.max(fs-1,6):fs;doc.setFont("helvetica","italic");doc.setFontSize(pfs);var pl=doc.splitTextToSize(ci.txt,innerDesc);
+          if(d.section==="body"&&d.column.index===2&&convs[d.row.index]){var ci=convs[d.row.index],legal=ci.tipo==="legal";
+            var dl=[];if(!legal){doc.setFont("Carlito","normal");doc.setFontSize(fs);dl=doc.splitTextToSize(String(d.cell.raw),innerDesc);}
+            var pfs=legal?fs:Math.max(fs-1,6),ptxt=ci.txt.replace(/→/g,"->");
+            doc.setFont("helvetica","italic");doc.setFontSize(pfs);var pl=doc.splitTextToSize(ptxt,innerDesc);
             doc.setFont("Carlito","normal");doc.setFontSize(fs);
             d.cell._cd={dl:dl,pl:pl,pfs:pfs};var blank=[];for(var bi=0;bi<dl.length+pl.length;bi++)blank.push(" ");d.cell.text=blank;d.cell.styles.valign="top";}
         },
         didDrawCell:function(d){
-          if(d.section==="body"&&d.cell._cd){var cd=d.cell._cd,lhf=1.15,cx=d.cell.x+d.cell.width/2,y=d.cell.y+d.cell.padding("top");
+          if(d.section==="body"&&d.cell._cd){var cd=d.cell._cd,lhf=1.1,cx=d.cell.x+d.cell.width/2,y=d.cell.y+d.cell.padding("top");
             doc.setFont("Carlito","normal");doc.setFontSize(fs);doc.setTextColor(0,0,0);
             cd.dl.forEach(function(ln){doc.text(ln,cx,y,{align:"center",baseline:"top"});y+=fs*lhf;});
             doc.setFont("helvetica","italic");doc.setFontSize(cd.pfs);doc.setTextColor(70,70,70);
@@ -1616,8 +1617,8 @@ function celXml(txt,w,o){
     '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="'+(o.jc||"center")+'"/></w:pPr>'+runXml(txt,o)+'</w:p></w:tc>';
 }
 function celXmlConv(desc,ci,w,o){
-  var sz2=ci.tipo==="banco"?Math.max(o.sz-2,12):o.sz;
-  var runs=runXml(desc,o)+'<w:r><w:br/></w:r>'+runXml(ci.txt,{sz:sz2,i:true,cor:"000000"});
+  var runs=ci.tipo==="legal"?runXml(ci.txt,{sz:o.sz,i:true,cor:"000000"})
+    :runXml(desc,o)+'<w:r><w:br/></w:r>'+runXml(ci.txt,{sz:Math.max(o.sz-2,12),i:true,cor:"000000"});
   return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+
     '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="'+(o.jc||"center")+'"/></w:pPr>'+runs+'</w:p></w:tc>';
 }
