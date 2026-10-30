@@ -1455,16 +1455,15 @@ function apendices(){
     return {key:p.key,num:p.num,titulo:"APÊNDICE "+p.num.slice(2)+": REPROCESSAMENTO DOS CÁLCULOS",sub:c.nome,rows:S.rowsRec,calc:c.calc,banco:false};
   });
 }
-function tagConv(ap,i){
+function convInfo(ap,i){
   var c=ap.calc[i],r=ap.rows[i];if(!c||c.div===1)return null;
   var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"",f=c.div===1000?"1.000":"2.750";
-  if(ap.banco)return "Conversão do banco ÷ "+f+" → "+nova;
-  if(r.origem==="conversao")return "Conversão do perito ÷ "+f+" → "+nova+" (data legal)";
-  return "Conversão ÷ "+f+" → "+nova+(caso.convLegal?" (data legal coincide com a do banco)":" (mesmo ponto do banco)");
+  if(!ap.banco&&r.origem==="conversao")return {txt:"Conversão ÷ "+f+" → "+nova+" (data legal)",tipo:"legal"};
+  return {txt:"Conversão ÷ "+f+" → "+nova+" (banco)",tipo:"banco"};
 }
 function linhasAp(ap){
-  return ap.rows.map(function(r,i){var c=ap.calc[i],p=c.pct;
-    return {tag:tagConv(ap,i),data:M.br(r.data),cod:r.cod,desc:r.desc+(r.reexp&&!ap.banco&&!c.recalc?" *":""),pgt:c.pgt?c.pgt:null,atm:p?p.atm:null,j:p?p.j:null,rla:p?p.rla:null,rac:p?p.rac:null,vac:ap.banco||c.vac===null?null:c.vac*100,rd:i===0?null:(c.rd?c.rd:(c.cat?0:null)),sf:c.sf};});
+  return ap.rows.map(function(r,i){var c=ap.calc[i],p=c.pct,cv=convInfo(ap,i);
+    return {conv:cv,tag:cv?cv.txt:null,data:M.br(r.data),cod:r.cod,desc:r.desc+(r.reexp&&!ap.banco&&!c.recalc?" *":""),pgt:c.pgt?c.pgt:null,atm:p?p.atm:null,j:p?p.j:null,rla:p?p.rla:null,rac:p?p.rac:null,vac:ap.banco||c.vac===null?null:c.vac*100,rd:i===0?null:(c.rd?c.rd:(c.cat?0:null)),sf:c.sf};});
 }
 function vAp(v){
   if(bloqueio(v))return;
@@ -1475,7 +1474,7 @@ function vAp(v){
   var mem=!!ESTADO.mem,tb=el("tbody"),colsV=mem?cols.concat(["Tratamento","Regra aplicada","Memória de cálculo"]):cols;
   X.forEach(function(x,i){var cells=[x.data,ocultarCod(x.cod)?"":x.cod,x.desc,fmt(x.pgt),pctf(x.atm),pctf(x.j),pctf(x.rla),pctf(x.rac)];if(!ap.banco)cells.push(x.vac===null?"":pctf(x.vac)+"%");cells.push(fmt(x.rd),fmt(x.sf));
     var tds=cells.map(function(t,k){return el("td",{class:k>=3?"num":"",text:t});});
-    if(x.tag)tds[2]=el("td",{},[x.desc," ",el("span",{class:"pill "+(ap.banco?"p-warn":"p-acc"),text:x.tag})]);
+    if(x.conv)tds[2]=el("td",{},[el("div",{text:x.desc}),el("div",{style:"font-style:italic;color:var(--muted)"+(x.conv.tipo==="banco"?";font-size:.82em":""),text:x.conv.txt})]);
     if(mem){var mm=memoria(ap,i);tds.push(el("td",{},[pillTrat(ap.calc[i],ap.rows[i])]),el("td",{class:"legend",text:mm.regra}),el("td",{class:"legend",style:"font-family:var(--f-num);white-space:nowrap",text:mm.conta}));}
     tb.append(el("tr",{class:x.tag?"convrow":""},tds));});
   v.append(el("div",{class:"panel"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between"},[el("label",{class:"f",style:"min-width:260px"},["Apêndice",sel]),
@@ -1530,9 +1529,9 @@ function tabelaLaudo(ap){
   var X=linhasAp(ap),ocult={};
   var linhas=X.map(function(x,i){
     var cod=x.cod;if(ocultarCod(cod)){ocult[cod]=(ocult[cod]||0)+1;cod="";}
-    var r=[x.data,cod,x.desc+(x.tag?" ["+x.tag+"]":""),nf(x.pgt,2),nf(x.atm,3),nf(x.j,3),nf(x.rla,3),nf(x.rac,3)];
+    var r=[x.data,cod,x.desc,nf(x.pgt,2),nf(x.atm,3),nf(x.j,3),nf(x.rla,3),nf(x.rac,3)];
     if(!ap.banco)r.push(x.vac===null?"":nf(x.vac,3)+"%");r.push(nf(x.rd,2),nf(x.sf,2));
-    return {cells:r,conv:ap.rows[i].origem==="conversao"};
+    return {cells:r,conv:ap.rows[i].origem==="conversao",ci:x.conv};
   });
   return {cab:ap.banco?LAUDO.cab10:LAUDO.cab11,w:ap.banco?LAUDO.w10:LAUDO.w11,linhas:linhas,ocult:ocult,notas:notasAp(ap)};
 }
@@ -1557,9 +1556,19 @@ function gerarPDF(lista){
     var info=[];
     lista.forEach(function(ap,n){
       if(n>0)doc.addPage();
-      var T=tabelaLaudo(ap),fs=fontes[ap.key]||7,cs={};
+      var T=tabelaLaudo(ap),fs=fontes[ap.key]||7,cs={},PADX=4.5;
       T.w.forEach(function(w,k){cs[k]={cellWidth:tw(w),halign:k>=3?"right":"center"};});
+      // Auto-ajuste: alarga colunas numéricas p/ o maior número caber em 1 linha (fonte fixa em 7pt = piso); a Descrição cede o espaço.
+      doc.setFont("Carlito","normal");doc.setFontSize(fs);
+      var extra=0;
+      for(var k=3;k<T.w.length;k++){var maxw=0;
+        T.linhas.forEach(function(l){var s=l.cells[k];if(s){var wv=doc.getTextWidth(String(s));if(wv>maxw)maxw=wv;}});
+        var need=maxw+PADX+0.8; if(need>cs[k].cellWidth){extra+=need-cs[k].cellWidth;cs[k].cellWidth=need;}}
+      if(extra>0){var podeCeder=Math.max(0,cs[2].cellWidth-tw(T.w[2])*0.45);
+        if(extra>podeCeder){var fator=podeCeder/extra;for(var k2=3;k2<T.w.length;k2++){var orig=tw(T.w[k2]);if(cs[k2].cellWidth>orig)cs[k2].cellWidth=orig+(cs[k2].cellWidth-orig)*fator;}extra=podeCeder;}
+        cs[2].cellWidth-=extra;}
       var cab=T.cab.map(function(h){return h.replace(" / ","\n");});
+      var convs=T.linhas.map(function(l){return l.ci;}),innerDesc=cs[2].cellWidth-PADX;
       doc.autoTable({
         head:[[{content:ap.titulo,colSpan:cab.length,styles:{fontSize:7.5,halign:"center"}}],cab],
         body:T.linhas.map(function(l){return l.cells;}),
@@ -1568,7 +1577,22 @@ function gerarPDF(lista){
         headStyles:{font:"Carlito",fontStyle:"bold",fillColor:[22,46,74],textColor:[255,255,255],fontSize:6.5,halign:"center",valign:"middle"},
         columnStyles:cs,
         willDrawPage:function(){fundo();},
-        didParseCell:function(d){if(d.section==="body"&&/^-/.test(String(d.cell.raw)))d.cell.styles.textColor=[192,0,0];},
+        didParseCell:function(d){
+          if(d.section==="body"&&/^-/.test(String(d.cell.raw)))d.cell.styles.textColor=[192,0,0];
+          if(d.section==="body"&&d.column.index===2&&convs[d.row.index]){var ci=convs[d.row.index];
+            doc.setFont("Carlito","normal");doc.setFontSize(fs);var dl=doc.splitTextToSize(String(d.cell.raw),innerDesc);
+            var pfs=ci.tipo==="banco"?Math.max(fs-1,6):fs;doc.setFont("helvetica","italic");doc.setFontSize(pfs);var pl=doc.splitTextToSize(ci.txt,innerDesc);
+            doc.setFont("Carlito","normal");doc.setFontSize(fs);
+            d.cell._cd={dl:dl,pl:pl,pfs:pfs};var blank=[];for(var bi=0;bi<dl.length+pl.length;bi++)blank.push(" ");d.cell.text=blank;d.cell.styles.valign="top";}
+        },
+        didDrawCell:function(d){
+          if(d.section==="body"&&d.cell._cd){var cd=d.cell._cd,lhf=1.15,cx=d.cell.x+d.cell.width/2,y=d.cell.y+d.cell.padding("top");
+            doc.setFont("Carlito","normal");doc.setFontSize(fs);doc.setTextColor(0,0,0);
+            cd.dl.forEach(function(ln){doc.text(ln,cx,y,{align:"center",baseline:"top"});y+=fs*lhf;});
+            doc.setFont("helvetica","italic");doc.setFontSize(cd.pfs);doc.setTextColor(70,70,70);
+            cd.pl.forEach(function(ln){doc.text(ln,cx,y,{align:"center",baseline:"top"});y+=cd.pfs*lhf;});
+            doc.setFont("Carlito","normal");doc.setFontSize(fs);doc.setTextColor(0,0,0);}
+        },
         didDrawPage:function(d){doc.setDrawColor(127,127,127);doc.setLineWidth(0.5);doc.rect(esq,d.settings.startY&&d.pageNumber===1?d.settings.startY:topo,dir-esq,d.cursor.y-(d.pageNumber===1?topo:topo));}
       });
       var rows=doc.lastAutoTable.body,ult=rows.length?rows[rows.length-1].pageNumber:0,naUlt=rows.filter(function(r){return r.pageNumber===ult;}).length;
@@ -1586,10 +1610,16 @@ function gerarPDF(lista){
 /* DOCX: edita o Papel_Timbrado.docx (marca d'água no cabeçalho), sem recriar o documento */
 function xe(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function runXml(txt,o){o=o||{};var partes=String(txt).split(o.quebra?" / ":"\n");
-  return partes.map(function(p,i){return (i?'<w:r><w:br/></w:r>':'')+'<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>'+(o.b?'<w:b/><w:bCs/>':'')+'<w:color w:val="'+(o.cor||"000000")+'"/><w:sz w:val="'+o.sz+'"/><w:szCs w:val="'+o.sz+'"/></w:rPr><w:t xml:space="preserve">'+xe(p)+'</w:t></w:r>';}).join("");}
+  return partes.map(function(p,i){return (i?'<w:r><w:br/></w:r>':'')+'<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>'+(o.b?'<w:b/><w:bCs/>':'')+(o.i?'<w:i/><w:iCs/>':'')+'<w:color w:val="'+(o.cor||"000000")+'"/><w:sz w:val="'+o.sz+'"/><w:szCs w:val="'+o.sz+'"/></w:rPr><w:t xml:space="preserve">'+xe(p)+'</w:t></w:r>';}).join("");}
 function celXml(txt,w,o){
   return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(o.span?'<w:gridSpan w:val="'+o.span+'"/>':'')+(o.fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+o.fill+'"/>':'')+'<w:vAlign w:val="center"/></w:tcPr>'+
     '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="'+(o.jc||"center")+'"/></w:pPr>'+runXml(txt,o)+'</w:p></w:tc>';
+}
+function celXmlConv(desc,ci,w,o){
+  var sz2=ci.tipo==="banco"?Math.max(o.sz-2,12):o.sz;
+  var runs=runXml(desc,o)+'<w:r><w:br/></w:r>'+runXml(ci.txt,{sz:sz2,i:true,cor:"000000"});
+  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+
+    '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="'+(o.jc||"center")+'"/></w:pPr>'+runs+'</w:p></w:tc>';
 }
 function tabelaXml(ap){
   var T=tabelaLaudo(ap),L=LAUDO,ext='w:val="single" w:sz="4" w:space="0" w:color="'+L.bordaExt+'"',int='w:val="single" w:sz="4" w:space="0" w:color="'+L.bordaInt+'"';
@@ -1598,7 +1628,9 @@ function tabelaXml(ap){
   var trH='<w:trPr><w:cantSplit/><w:tblHeader/><w:trHeight w:val="120"/></w:trPr>',trB='<w:trPr><w:cantSplit/><w:trHeight w:val="120"/></w:trPr>';
   x+='<w:tr>'+trH+celXml(ap.titulo,L.larg,{span:T.w.length,fill:L.azul,cor:"FFFFFF",b:true,sz:15})+'</w:tr>';
   x+='<w:tr>'+trH+T.cab.map(function(h,k){return celXml(h,T.w[k],{fill:L.azul,cor:"FFFFFF",b:true,sz:13,quebra:true});}).join("")+'</w:tr>';
-  T.linhas.forEach(function(l){x+='<w:tr>'+trB+l.cells.map(function(c,k){return celXml(c,T.w[k],{sz:14,jc:k>=3?"right":"center",cor:/^-/.test(c)?L.vermelho:"000000"});}).join("")+'</w:tr>';});
+  T.linhas.forEach(function(l){x+='<w:tr>'+trB+l.cells.map(function(c,k){
+    if(k===2&&l.ci)return celXmlConv(c,l.ci,T.w[k],{sz:14,jc:"center",cor:"000000"});
+    return celXml(c,T.w[k],{sz:14,jc:k>=3?"right":"center",cor:/^-/.test(c)?L.vermelho:"000000"});}).join("")+'</w:tr>';});
   x+='</w:tbl>';
   T.notas.forEach(function(n){x+='<w:p><w:pPr><w:spacing w:before="40" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr>'+runXml(n,{sz:14})+'</w:p>';});
   return x;
