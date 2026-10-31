@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Motor de Cálculo PASEP</title>
+<title>Calculadora do PASEP</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
@@ -190,7 +190,7 @@ table.lista td.cod{font-family:var(--f-num);font-weight:500}
   <header class="top">
     <div>
       <div class="eyebrow">Perícia contábil · PASEP</div>
-      <h1>Motor de Cálculo PASEP</h1>
+      <h1>Calculadora do PASEP</h1>
       <div class="emb-only"><b id="embProc"></b> <span id="stNuvem" class="legend nuvem"></span></div>
     </div>
     <div class="btns">
@@ -719,7 +719,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   function ano(d) { return +d.slice(0, 4); }
-  function num(c) { var n = parseInt(c, 10); return isNaN(n) || String(n) !== String(c).trim() ? null : n; }
+  function num(c) { if (c === null || c === undefined) return null; var s = String(c).trim(); if (s === "") return null; var f = Number(s); return !isFinite(f) || f !== Math.trunc(f) ? null : f; }
 
   /* valor efetivo da linha em cada camada */
   function valBanco(r) { return r.origem === "incluida" ? 0 : +r.val || 0; }
@@ -761,7 +761,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* Reprocessa a conta. modo: "banco" (AP01, sem recálculo) | cenário de CENARIOS.
      camada: "banco" | "ajustada" | "saques" define o valor de cada linha. */
   function calcular(rows, T, modo, camada, cfg) {
-    var det = classificarDet(rows, cfg), out = [], sf = 0, piso = !cfg || cfg.pisoZero !== false;
+    var det = classificarDet(rows, cfg), out = [], sf = 0, piso = true;
     var vf = camada === "banco" ? valBanco : camada === "saques" ? valSaques : valAjustado;
     var cen = CENARIOS[modo];
     for (var i = 0; i < rows.length; i++) {
@@ -877,6 +877,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var tol = cfg && cfg.tolerancia !== undefined ? +cfg.tolerancia : 0.02;
     var reAc = new RegExp((cfg && cfg.palavrasAcerto ? cfg.palavrasAcerto : "acerto").split(/\s*[,;]\s*/).filter(Boolean).map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") || "acerto", "i");
     function add(k, tipo, ref, msg, bloq, acao) { P.push({ key: k, tipo: tipo, ref: ref, msg: msg, bloqueia: bloq !== false, acao: acao || null, ciente: ciencias && ciencias[k] }); }
+    function nrm(s){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s+/g," ").trim(); }
     for (var i = 1; i < rows.length; i++) if (rows[i].data < rows[i - 1].data) add("ordem|" + rows[i].id, "Ordem cronológica", rows[i].id, "Data anterior à da linha de cima.");
     var porAno = {};
     rows.forEach(function (r, i) { var a = ano(r.data); (porAno[a] = porAno[a] || {})[cats[i] || "-"] = (porAno[a][cats[i] || "-"] || 0) + 1; porAno[a]["c" + r.cod] = 1; });
@@ -904,9 +905,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (r.origem === "incluida") return;
       if (r.satuSaldo !== null && r.satuSaldo !== undefined && r.satuSaldo !== "" && Math.abs(base[i].sf - (+r.satuSaldo)) > tol + 1e-9)
         add("satu|" + r.id, "Conferência SATU", r.id, "Saldo calculado " + fmt(base[i].sf) + " × microficha " + r.mf + " " + fmt(+r.satuSaldo) + ".");
-      if (base[i].sf < -tol) add("neg|" + r.id, "Saldo negativo", r.id, "Saldo " + fmt(base[i].sf) + " na digitação do banco.");
+      if (base[i].sf < -tol) add("neg|" + r.id, "Saldo negativo", r.id, "Saldo " + fmt(base[i].sf) + " na digitação do banco. O saldo pode ficar negativo; confira apenas se não é erro de digitação.", false);
       var c = num(r.cod);
       if (c !== null && R && !R[c] && !(cfg && cfg.rubricasExtra && cfg.rubricasExtra[c])) add("rub|" + r.id, "Rubrica não cadastrada", r.id, "Código " + c + " sem cadastro.", false);
+      if (c !== null && R && R[c] && R[c][0] && nrm(r.desc) !== nrm(R[c][0])) add("red|" + r.id, "Redação divergente", r.id, "Redação divergente: na digitação consta “" + (r.desc || "") + "”; na Tabela de rubricas, “" + R[c][0] + "” (código " + c + ").", false);
     });
     var M = moedas(rows);
     if (M.length && M[M.length - 1].nReg !== M[M.length - 1].nLegal)
@@ -1041,7 +1043,7 @@ function carregarExemplo(){
   caso.rows=EXEMPLO.base.map(function(r){return linha(r);});
   aplicarAjustada(EXEMPLO.aj,"Importado da digitação ajustada do exemplo");
   caso.analise={tese:"TJLP+EXP",teseOk:true};caso.saquesResp="sim";
-  caso.rows.forEach(function(r){if(r.val<0&&["1993-02-24","2010-07-15","2013-08-16"].indexOf(r.data)>=0){r.saqueDesc=true;r.saque={bloco:M.blocoTema1300(r,DATA.R,CFG()),fund:"Pedido específico na inicial; desconsiderado pelo Perito.",folha:""};}});
+  caso.rows.forEach(function(r){if(r.val<0&&["1993-02-24","2010-07-15","2013-08-16"].indexOf(r.data)>=0){r.saqueDesc=true;r.saque={bloco:M.blocoTema1300(r,DATA.R,CFG()),fund:"Pedido específico nas alegações do autor; desconsiderado pelo Perito.",folha:""};}});
 }
 function aplicarAjustada(aj,just){
   var base=caso.rows.filter(function(r){return r.origem!=="incluida";});
@@ -1158,9 +1160,9 @@ function situacaoEtapas(){
   d[1]=d[0]&&S.abertas.length===0;
   m[1]=S.abertas.length?"Resolva as "+S.abertas.length+" pendência(s) da digitação para continuar.":"";
   d[2]=d[1]&&!!caso.saquesResp&&(caso.saquesResp!=="sim"||nSaq>0);
-  m[2]=!caso.saquesResp?"Responda se a inicial pede a desconsideração de saques.":caso.saquesResp==="sim"&&!nSaq?"Marque ao menos um saque a desconsiderar, ou mude a resposta.":"";
+  m[2]=!caso.saquesResp?"Responda se as alegações do autor pedem a desconsideração de saques.":caso.saquesResp==="sim"&&!nSaq?"Marque ao menos um saque a desconsiderar, ou mude a resposta.":"";
   d[3]=d[2]&&!!(caso.analise&&caso.analise.teseOk);
-  m[3]=d[3]?"":"Escolha as teses pleiteadas na inicial.";
+  m[3]=d[3]?"":"Escolha as teses pleiteadas nas alegações do autor.";
   d[4]=d[3]&&!!caso.exportado;m[4]=d[4]?"":"Baixe os apêndices em PDF (ou a planilha) para concluir.";d[5]=d[3];m[5]="";
   var resumo=[
     caso.rows.length?caso.rows.filter(function(r){return r.origem!=="incluida";}).length+" lançamentos":"Pendente",
@@ -1230,6 +1232,7 @@ function vImp(v){
 function vDig(v){
   if(!caso.rows.length){v.append(el("div",{class:"panel"},[el("h2",{text:"Nenhum lançamento"}),el("p",{class:"muted",text:"Importe a planilha de digitação na etapa 1."}),el("div",{},[el("button",{type:"button",class:"primary",text:"Ir para a importação",onclick:function(){ESTADO.tab="imp";render();}})])]));return;}
   var nIn=caso.rows.filter(function(r){return r.origem==="incluida";}).length,nZ=caso.rows.filter(function(r){return r.zerado;}).length;
+  var coincDatas={}; M.paresConversao(caso.rows).pares.forEach(function(p){if(p.coincide&&p.banco)coincDatas[p.banco.data]=1;});
   /* pendências por linha e por posição (eventos faltantes) */
   var porLinha={},fantasmas=[];
   S.P.forEach(function(p){if(p.ciente)return;
@@ -1251,7 +1254,7 @@ function vDig(v){
     lista.children.length?el("details",{class:"box"},[el("summary",{text:"Ver todas as pendências e alertas ("+(abertos.length-1>0?abertos.length-1:0)+" pendência(s), "+alertas.length+" alerta(s), "+cientes.length+" ciente(s))"}),el("div",{style:"margin-top:10px"},[lista])]):null,
     el("div",{class:"btns"},[el("button",{type:"button",class:"small",text:"Incluir uma linha manualmente",onclick:function(){pedirIncluir({});}}),el("span",{class:"legend",text:nIn+" linha(s) incluída(s) · "+nZ+" lançamento(s) zerado(s)"})])]));
   /* conversões monetárias */
-  var ctb=el("tbody");(S.leg?S.leg.pares:[]).forEach(function(p){ctb.append(el("tr",{},[el("td",{text:p.marco?p.marco.moeda+" ("+p.marco.eq+")":"—"}),el("td",{text:p.marco?M.br(p.marco.data):"—"}),el("td",{text:p.banco?M.br(p.banco.data)+" (÷ "+p.banco.fator.toLocaleString("pt-BR")+")":"não lançada"}),el("td",{},[p.coincide?pill("Coincide","p-ok"):pill("Diverge","p-warn")])]));});
+  var ctb=el("tbody");(S.leg?S.leg.pares:[]).forEach(function(p){ctb.append(el("tr",{},[el("td",{text:p.marco?p.marco.moeda+" ("+p.marco.eq+")":"—"}),el("td",{text:p.marco?M.br(p.marco.data):"—"}),el("td",{text:p.banco?M.br(p.banco.data)+" (÷ "+p.banco.fator.toLocaleString("pt-BR")+")":"não lançada"}),el("td",{},[p.coincide?pill("Banco = data legal","p-ok"):pill("Diverge","p-warn")])]));});
   var ef=S.efeito?el("p",{class:"legend",style:"margin:0"},["Efeito no saldo final (Tabela Oficial, sem saques): conversões como o banco aplicou "+fmt(S.efeito.banco)+" · nas datas legais "+fmt(S.efeito.legal)+" · diferença "+fmt(S.efeito.legal-S.efeito.banco)+". A diferença vem apenas do arredondamento na conversão."]):null;
   var convOpt=el("div",{class:"pgrid"},[[false,"Como o banco aplicou","Os apêndices recalculados seguem os pontos de conversão do extrato."],[true,"Nas datas legais (Tabela II do laudo)","Os apêndices recalculados convertem na data legal, com o saldo truncado nos centavos; os lançamentos intermediários são reexpressos. O AP01 não muda."]].map(function(o){return el("label",{class:"opt"},[el("input",{type:"radio",name:"convLegal",id:"cl-"+o[0],checked:!!caso.convLegal===o[0],disabled:o[0]&&S.leg&&!S.leg.ok,onchange:function(){caso.convLegal=o[0];caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Conversões monetárias",data:"",cod:"",desc:o[1],just:""});render();}}),el("span",{},[el("b",{text:o[1]}),el("span",{class:"legend",style:"display:block",text:o[2]})])]);}));
   if(S.leg&&S.leg.pares.length)v.append(el("details",{class:"box",style:"margin-bottom:14px",open:S.leg.pares.some(function(p){return !p.coincide;})?true:null},[el("summary",{text:"Conversões monetárias: "+(caso.convLegal?"nas datas legais":"como o banco aplicou")+(S.leg.pares.some(function(p){return !p.coincide;})?" · há divergência entre o banco e as datas legais":"")}),
@@ -1278,7 +1281,7 @@ function vDig(v){
       el("td",{class:"num legend",text:String(i+1)}),el("td",{text:M.br(r.data)}),el("td",{text:r.cod}),el("td",{class:"desc"},[r.desc].concat(msgs)),celTrat(r,b),
       el("td",{class:"num v",text:r.origem==="incluida"?"—":fmt(r.val)}),
       el("td",{class:"c"},[r.origem==="incluida"?pill("Incluída","p-acc"):r.zerado?pill("Zerado","p-warn"):""]),
-      el("td",{class:"c"},[r.conv?el("span",{class:"pill p-warn",title:"Conversão aplicada pelo banco neste lançamento",text:"Banco: "+r.conv}):""]),
+      el("td",{class:"c"},[r.conv?el("span",{class:"pill p-warn",title:"Conversão aplicada pelo banco neste lançamento",text:"Banco: "+r.conv+(coincDatas[r.data]?" (= data legal)":"")}):""]),
       el("td",{class:"num"},[el("button",{type:"button",class:"small ajbtn"+(r.aj?" tem":""),title:"Editar o valor p/ ajuste manual",text:(r.aj?fmt(r.aj):"0,00")+" ✎",onclick:function(){pedirArred(r);}}),r.ajOrig!==undefined&&r.ajOrig!==r.aj?el("span",{class:"rowmsg alr",text:"editado (era "+fmt(r.ajOrig)+")"}):null]),
       el("td",{class:"num",text:r.origem==="incluida"?"":fmt(b.sf)}),
       el("td",{class:"c",text:r.mf?"nº "+r.mf:""}),
@@ -1386,10 +1389,10 @@ function pedirZerar(r){
 }
 
 function vSaq(v){
-  v.append(cabecalho(3,"Saques à luz do Tema 1.300","Responda se a petição inicial pede que algum saque seja desconsiderado. Só há reprocessamento quando o pedido indica os lançamentos (data, valor ou rubrica).",["Escolha uma das três respostas.","Se houver pedido específico, marque os saques que o Perito decidiu desconsiderar e informe o fundamento.","Clique em “Avançar”."]));
+  v.append(cabecalho(3,"Saques à luz do Tema 1.300","Responda se as alegações do autor pedem que algum saque seja desconsiderado. Só há reprocessamento quando o pedido indica os lançamentos (data, valor ou rubrica).",["Escolha uma das três respostas.","Se houver pedido específico, marque os saques que o Perito decidiu desconsiderar e informe o fundamento.","Clique em “Avançar”."]));
   var R=caso.saquesResp;
-  var opts=[["nao","Não há pedido","Os saques são mantidos como o banco registrou."],["generico","Há pedido, mas genérico","A inicial não indica data, valor ou rubrica. Os saques são mantidos e o laudo registra o fundamento do Tema 1.300."],["sim","Há pedido específico","A inicial indica os lançamentos. Marque abaixo os que serão desconsiderados."]];
-  v.append(el("div",{class:"panel",style:"margin-bottom:14px"},[el("h2",{text:"A petição inicial pede a desconsideração de saques?"}),
+  var opts=[["nao","Não há pedido","Os saques são mantidos como o banco registrou."],["generico","Há pedido, mas genérico","As alegações do autor não indicam data, valor ou rubrica. Os saques são mantidos e o laudo registra o fundamento do Tema 1.300."],["sim","Há pedido específico","As alegações do autor indicam os lançamentos. Marque abaixo os que serão desconsiderados."]];
+  v.append(el("div",{class:"panel",style:"margin-bottom:14px"},[el("h2",{text:"As alegações do autor pedem a desconsideração de saques?"}),
     el("div",{class:"pgrid"},opts.map(function(o){return el("label",{class:"opt"},[el("input",{type:"radio",name:"saqResp",id:"sr-"+o[0],checked:R===o[0],onchange:function(){caso.saquesResp=o[0];caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Pedido de saques",data:"",cod:"",desc:o[1],just:""});render();}}),el("span",{},[el("b",{text:o[1]}),el("span",{class:"legend",style:"display:block",text:o[2]})])]);}))]));
   if(R!=="sim")return;
   var deb=caso.rows.filter(function(r){return M.valAjustado(r)<0||(r.saqueDesc&&r.val<0);});
@@ -1401,7 +1404,7 @@ function vSaq(v){
     var bloco=blocoAtual(r),cfgB=blocoCfg(r);
     tb.append(el("tr",{class:r.saqueDesc?"zer":""},[
       el("td",{},[el("input",{type:"checkbox",id:"sq-"+r.id,checked:r.saqueDesc,"aria-label":"Desconsiderar saque de "+M.br(r.data),onchange:function(e){
-        if(e.target.checked){dialogo("Desconsiderar saque",M.br(r.data)+" · "+r.desc+" · "+fmt(r.val),[{k:"fund",label:"Fundamento",type:"area",v:"Pedido específico na inicial; "+(bloco==="A"?"saque no caixa da agência, ônus da prova do Banco (Tema 1.300).":"crédito em conta ou folha; prova específica nos autos (Tema 1.300).")},{k:"folha",label:"Folha da prova",v:""}],"Desconsiderar",function(x){if(!x.fund)return "Informe o fundamento.";r.saqueDesc=true;r.saque={bloco:bloco,fund:x.fund,folha:x.folha};registrar("Saque desconsiderado",r,x.fund);render();});e.target.checked=false;}
+        if(e.target.checked){dialogo("Desconsiderar saque",M.br(r.data)+" · "+r.desc+" · "+fmt(r.val),[{k:"fund",label:"Fundamento",type:"area",v:"Pedido específico nas alegações do autor; "+(bloco==="A"?"saque no caixa da agência, ônus da prova do Banco (Tema 1.300).":"crédito em conta ou folha; prova específica nos autos (Tema 1.300).")},{k:"folha",label:"Folha da prova",v:""}],"Desconsiderar",function(x){if(!x.fund)return "Informe o fundamento.";r.saqueDesc=true;r.saque={bloco:bloco,fund:x.fund,folha:x.folha};registrar("Saque desconsiderado",r,x.fund);render();});e.target.checked=false;}
         else{r.saqueDesc=false;registrar("Saque restabelecido",r,"");render();}}})]),
       el("td",{text:M.br(r.data)}),el("td",{text:r.cod}),el("td",{text:r.desc}),el("td",{class:"num v",text:fmt(r.val)}),
       el("td",{class:"c"},[el("button",{type:"button",class:"trbtn",title:"Alterar o tipo de pagamento deste lançamento",onclick:function(){pedirTipoPag(r);}},[pill(TIPOPAG[bloco]?TIPOPAG[bloco][0]:TIPOPAG["?"][0],bloco==="A"?"p-crit":bloco==="B"?"p-acc":"p-warn"),el("span",{class:"ed",text:"✎"})]),el("span",{class:"legend",style:"display:block",text:(TIPOPAG[bloco]||TIPOPAG["?"])[1]}),
@@ -1421,16 +1424,27 @@ function bloqueio(v){
   return false;
 }
 function vTes(v){
-  v.append(cabecalho(4,"Teses de atualização do pedido","Escolha as teses que a petição inicial pede. Só entram no cálculo as teses pleiteadas expressamente.",["Escolha uma das quatro opções.","Confira, ao lado, quais apêndices serão gerados.","Clique em “Avançar”."]));
+  v.append(cabecalho(4,"Teses de atualização do pedido","Escolha as teses que as alegações do autor pedem. Só entram no cálculo as teses pleiteadas expressamente.",["Escolha uma das quatro opções.","Confira, ao lado, quais apêndices serão gerados.","Clique em “Avançar”."]));
   var a=analise(),ok=caso.analise&&caso.analise.teseOk;
-  var teses=el("div",{class:"pgrid"},TESES.map(function(t){return el("label",{class:"opt"},[el("input",{type:"radio",name:"tese",id:"tese-"+t[0].replace("+","_"),checked:ok&&a.tese===t[0],onchange:function(){caso.analise={tese:t[0],teseOk:true};caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Teses do pedido",data:"",cod:"",desc:t[1],just:""});render();}}),el("span",{},[el("b",{text:t[1]}),el("span",{class:"legend",style:"display:block",text:t[0]==="OFICIAL"?"A inicial não pede expurgos nem TJLP.":t[0]==="TJLP+EXP"?"A inicial pede as duas teses; o cenário alternativo aplica as duas em conjunto.":"A inicial pede somente esta tese."})])]);}));
-  v.append(el("div",{class:"grid2"},[el("div",{class:"panel"},[el("h2",{text:"Quais teses a inicial pede?"}),teses]),planoPainel(ok)]));
+  var teses=el("div",{class:"pgrid"},TESES.map(function(t){return el("label",{class:"opt"},[el("input",{type:"radio",name:"tese",id:"tese-"+t[0].replace("+","_"),checked:ok&&a.tese===t[0],onchange:function(){caso.analise={tese:t[0],teseOk:true};caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Teses do pedido",data:"",cod:"",desc:t[1],just:""});render();}}),el("span",{},[el("b",{text:t[1]}),el("span",{class:"legend",style:"display:block",text:t[0]==="OFICIAL"?"As alegações do autor não pedem expurgos nem TJLP.":t[0]==="TJLP+EXP"?"As alegações do autor pedem as duas teses; o cenário alternativo aplica as duas em conjunto.":"As alegações do autor pedem somente esta tese."})])]);}));
+  v.append(el("div",{class:"grid2"},[el("div",{class:"panel"},[el("h2",{text:"Quais teses as alegações do autor pedem?"}),teses]),planoPainel(ok)]));
 }
 function planoPainel(ok){
   var lista=el("ol",{class:"plan"});
   plano().forEach(function(p){lista.append(el("li",{},[pill(p.num,"p-acc"),el("span",{text:p.key==="AP01"?"Reprodução da conta conforme o banco":nomeCen(p.key)})]));});
   return el("div",{class:"panel"},[el("h2",{text:"Apêndices que serão gerados"}),ok?null:el("p",{class:"legend",style:"margin:0;color:var(--crit)",text:"Escolha as teses para confirmar o plano."}),lista,
     el("p",{class:"legend",style:"margin:0",text:"Saques: "+(caso.saquesResp==="sim"?"com desconsideração (etapa 3)":"mantidos")+". O AP01 e o AP02 são sempre gerados."})]);
+}
+function pisoZeroAlertas(){
+  var out=[];
+  apendices().forEach(function(ap){
+    if(ap.banco)return;
+    ap.calc.forEach(function(c,i){
+      if(c&&c.piso0){var r=ap.rows[i];
+        out.push("Valor recalculado negativo lançado como zero: "+ap.num+" ("+(ap.sub||"")+"), "+M.br(r.data)+", código "+r.cod+", valor calculado "+fmt(c.bruto)+".");}
+    });
+  });
+  return out;
 }
 function vRes(v){
   if(bloqueio(v))return;
@@ -1442,6 +1456,8 @@ function vRes(v){
   v.append(el("div",{class:"panel",style:"margin-bottom:14px"},[el("h2",{text:"Quadro de apêndices"}),
     el("div",{class:"scroll"},[el("table",{},[el("thead",{},[el("tr",{},["Apêndice","Conteúdo","Saldo final","Diferença × AP01",""].map(function(h,k){return el("th",{class:k===2||k===3?"num":"",text:h});}))]),tb])]),
     el("p",{class:"legend",style:"margin:0",text:"Saldos na data do último lançamento ("+M.br(S.ap01.linhas.slice(-1)[0].data)+"), referência para eventual atualização."})]));
+  var pza=pisoZeroAlertas();
+  if(pza.length)v.append(el("div",{class:"panel",style:"margin-bottom:14px;border-left:4px solid var(--warn)"},[el("h2",{text:"Valores recalculados negativos lançados como zero ("+pza.length+")"}),el("p",{class:"legend",style:"margin:0 0 6px"},[el("span",{text:"Em cada caso, o valor recalculado ficou negativo e foi lançado como 0,00 (piso zero). A linha aparece destacada no visualizador do apêndice abaixo."})]),el("div",{class:"legend",style:"display:grid;gap:4px"},pza.map(function(t){return el("span",{text:t});}))]));
   var w=el("div",{id:"apView"});v.append(w);vAp(w);
   var ct=el("tbody"),maxd=Math.max.apply(null,S.cen.map(function(c){return Math.abs(c.calc.slice(-1)[0].sf-b0);}))||1;
   S.cen.forEach(function(c){var sf=c.calc.slice(-1)[0].sf,d=sf-b0,n=numeroAp(c.key);
@@ -1459,7 +1475,9 @@ function convInfo(ap,i){
   var c=ap.calc[i],r=ap.rows[i];if(!c||c.div===1)return null;
   var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"",f=c.div===1000?"1.000":"2.750";
   if(!ap.banco&&r.origem==="conversao")return {txt:"Conversão ÷ "+f+" → "+nova+" (data legal)",tipo:"legal"};
-  return {txt:"Conversão ÷ "+f+" → "+nova+" (banco)",tipo:"banco"};
+  var coincide=false,P=M.paresConversao(caso.rows).pares;
+  P.forEach(function(p){if(p.coincide&&p.banco&&p.banco.data===r.data)coincide=true;});
+  return {txt:"Conversão ÷ "+f+" → "+nova+(coincide?" (banco = data legal)":" (banco)"),tipo:"banco"};
 }
 function linhasAp(ap){
   return ap.rows.map(function(r,i){var c=ap.calc[i],p=c.pct,cv=convInfo(ap,i);
@@ -1472,11 +1490,11 @@ function vAp(v){
   var ap=L.filter(function(a){return a.key===ESTADO.apSel;})[0],X=linhasAp(ap);
   var cols=(ap.banco?LAUDO.cab10:LAUDO.cab11).map(function(h){return h.replace(" / "," ");});
   var mem=!!ESTADO.mem,tb=el("tbody"),colsV=mem?cols.concat(["Tratamento","Regra aplicada","Memória de cálculo"]):cols;
-  X.forEach(function(x,i){var cells=[x.data,ocultarCod(x.cod)?"":x.cod,x.desc,fmt(x.pgt),pctf(x.atm),pctf(x.j),pctf(x.rla),pctf(x.rac)];if(!ap.banco)cells.push(x.vac===null?"":pctf(x.vac)+"%");cells.push(fmt(x.rd),fmt(x.sf));
+  X.forEach(function(x,i){var cells=[x.data,ocultarCod(x.cod)||ap.rows[i].origem==="conversao"?"":x.cod,x.desc,fmt(x.pgt),pctf(x.atm),pctf(x.j),pctf(x.rla),pctf(x.rac)];if(!ap.banco)cells.push(x.vac===null?"":pctf(x.vac)+"%");cells.push(fmt(x.rd),fmt(x.sf));
     var tds=cells.map(function(t,k){return el("td",{class:k>=3?"num":"",text:t});});
     if(x.conv){var cc=[];if(x.conv.tipo!=="legal")cc.push(el("div",{text:x.desc}));cc.push(el("div",{style:"font-style:italic"+(x.conv.tipo==="banco"?";color:var(--muted);font-size:.82em":""),text:x.conv.txt}));tds[2]=el("td",{},cc);}
     if(mem){var mm=memoria(ap,i);tds.push(el("td",{},[pillTrat(ap.calc[i],ap.rows[i])]),el("td",{class:"legend",text:mm.regra}),el("td",{class:"legend",style:"font-family:var(--f-num);white-space:nowrap",text:mm.conta}));}
-    tb.append(el("tr",{class:x.tag?"convrow":""},tds));});
+    tb.append(el("tr",{class:x.tag?"convrow":"",style:ap.calc[i]&&ap.calc[i].piso0?"background:var(--warn-soft)":""},tds));});
   v.append(el("div",{class:"panel"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between"},[el("label",{class:"f",style:"min-width:260px"},["Apêndice",sel]),
     el("div",{class:"btns"},[el("label",{style:"display:flex;gap:6px;align-items:center;font-size:.85rem"},[el("input",{type:"checkbox",id:"memToggle",checked:mem,style:"width:auto",onchange:function(e){ESTADO.mem=e.target.checked;render();}}),"Mostrar memória de cálculo"]),el("button",{type:"button",text:"Copiar tabela",onclick:function(){copiar(ap,X,cols);}}),el("button",{type:"button",class:"primary",text:"Exportar apêndices do laudo (.xlsx)",onclick:exportar})])]),
     el("h3",{text:ap.titulo}),el("p",{class:"legend",style:"margin:0",text:"Esta é exatamente a tabela que vai para o PDF e para o Word. Os códigos marcados como “ocultar no apêndice” nas Configurações aparecem em branco."}),
@@ -1502,7 +1520,7 @@ function memoria(ap,i){
   if(c.div!==1)t+=" · saldo ÷ "+(c.div===1000?"1.000":"2.750");
   return {regra:regraDe(c),conta:t};
 }
-function matriz(ap,X){return X.map(function(x){var r=[x.data,ocultarCod(x.cod)?"":x.cod,x.desc+(x.tag?" ["+x.tag+"]":""),x.pgt,x.atm,x.j,x.rla,x.rac];if(!ap.banco)r.push(x.vac===null?null:x.vac/100);r.push(x.rd,x.sf===null?null:Math.round(x.sf*100)/100);return r;});}
+function matriz(ap,X){return X.map(function(x,i){var r=[x.data,ocultarCod(x.cod)||ap.rows[i].origem==="conversao"?"":x.cod,x.desc+(x.tag?" ["+x.tag+"]":""),x.pgt,x.atm,x.j,x.rla,x.rac];if(!ap.banco)r.push(x.vac===null?null:x.vac/100);r.push(x.rd,x.sf===null?null:Math.round(x.sf*100)/100);return r;});}
 function copiar(ap,X,cols){
   var txt=[cols.join("\t")].concat(matriz(ap,X).map(function(r){return r.map(function(c){return c===null||c===undefined?"":typeof c==="number"?String(c).replace(".",","):c;}).join("\t");})).join("\n");
   var ok=function(){toast("Tabela copiada. Cole no Excel.");};
@@ -1528,7 +1546,7 @@ function tipoPagTxt(b){var t=TIPOPAG[b]||TIPOPAG["?"];return t[0]+" ("+t[1]+")";
 function tabelaLaudo(ap){
   var X=linhasAp(ap),ocult={};
   var linhas=X.map(function(x,i){
-    var cod=x.cod;if(ocultarCod(cod)){ocult[cod]=(ocult[cod]||0)+1;cod="";}
+    var cod=x.cod;if(ocultarCod(cod)){ocult[cod]=(ocult[cod]||0)+1;cod="";}if(ap.rows[i].origem==="conversao")cod="";
     var r=[x.data,cod,x.desc,nf(x.pgt,2),nf(x.atm,3),nf(x.j,3),nf(x.rla,3),nf(x.rac,3)];
     if(!ap.banco)r.push(x.vac===null?"":nf(x.vac,3)+"%");r.push(nf(x.rd,2),nf(x.sf,2));
     return {cells:r,conv:ap.rows[i].origem==="conversao",ci:x.conv};
@@ -1844,7 +1862,6 @@ function cfgGerais(sec,cfg){
   sec.append(secTitulo("Outras configurações","Regras gerais do cálculo e papel timbrado dos apêndices."));
   sec.append(el("h3",{text:"Regras gerais (valem para todos os lançamentos do caso)"}));
   sec.append(el("div",{class:"panel",style:"max-width:760px"},[el("div",{style:"display:grid;gap:14px"},[
-    el("label",{class:"f"},["Rendimento recalculado negativo",el("select",{id:"cfgPiso",onchange:function(e){cfg.pisoZero=e.target.value==="1";logCfg("Piso zero: "+(cfg.pisoZero?"ativo":"inativo"));render();}},[el("option",{value:"1",selected:cfg.pisoZero!==false,text:"Lançar zero (piso zero)"}),el("option",{value:"0",selected:cfg.pisoZero===false,text:"Lançar o valor negativo"})])]),
     el("label",{class:"f"},["Tolerância das conferências de saldo (R$)",el("input",{id:"cfgTol",inputmode:"decimal",value:String(cfg.tolerancia).replace(".",","),onchange:function(e){var t=+e.target.value.replace(",",".");if(isNaN(t)||t<0){toast("Informe um valor válido.");return;}cfg.tolerancia=t;logCfg("Tolerância: "+t);render();}})]),
     el("label",{class:"f"},["Palavras que identificam acertos do banco (separadas por vírgula)",el("input",{id:"cfgAc",value:cfg.palavrasAcerto||"",onchange:function(e){cfg.palavrasAcerto=e.target.value;logCfg("Palavras de acerto: "+e.target.value);render();}})])])]));
 }

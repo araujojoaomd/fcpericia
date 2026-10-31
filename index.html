@@ -274,7 +274,6 @@ tbody tr:nth-child(even){background:#fafafa}
     </div>
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span>◈</span> Dashboard</button>
     <button class="nav-btn" data-tab="processos" onclick="switchTab('processos')"><span>⊞</span> Processos</button>
-    <button class="nav-btn" data-tab="motor" onclick="abrirMotor()"><span>∑</span> Motor PASEP</button>
     <button class="nav-btn" data-tab="tarefas" onclick="switchTab('tarefas')"><span>✓</span> Tarefas Pendentes</button>
     <button class="nav-btn" data-tab="movimentacoes" onclick="switchTab('movimentacoes')"><span>↺</span> Movimentações</button>
     <button class="nav-btn" data-tab="tjse" onclick="switchTab('tjse')"><span>⚖</span> Andamento TJSE</button>
@@ -282,6 +281,7 @@ tbody tr:nth-child(even){background:#fafafa}
     <button class="nav-btn" data-tab="relatorios" onclick="switchTab('relatorios')"><span>▤</span> Relatórios</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span>⚙</span> Tabelas de Cadastro</button>
     <button class="nav-btn" data-tab="modelos" onclick="switchTab('modelos');mlCarregarPastaModelos()"><span>❏</span> Modelos de Documentos</button>
+    <button class="nav-btn" data-tab="motor" onclick="abrirMotor()"><span>∑</span> Calculadora do PASEP</button>
     <div class="sidebar-footer">
       <button class="btn-reload" id="btnReload" onclick="carregarDados()">↺ Recarregar</button>
       <button class="btn-logout" onclick="fazerLogout()">Sair da conta</button>
@@ -295,14 +295,14 @@ tbody tr:nth-child(even){background:#fafafa}
 
       <div id="tab-motor" class="tab-content" style="display:none">
         <div class="topbar">
-          <div><div class="page-title">Motor de Cálculo PASEP</div><p class="page-sub" style="margin:2px 0 0">O caso é salvo na pasta do processo no Drive (Motor_PASEP_caso.json), e os apêndices gerados também vão para essa pasta.</p></div>
+          <div><div class="page-title">Calculadora do PASEP</div><p class="page-sub" style="margin:2px 0 0">O caso é salvo na pasta do processo no Drive (Motor_PASEP_caso.json), e os apêndices gerados também vão para essa pasta.</p></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select class="filter-select" id="motor-proc" onchange="abrirMotor(this.value)" style="min-width:320px"></select>
             <button class="act-btn act-gray" onclick="abrirPastaProcesso(document.getElementById('motor-proc').value)">📎 Pasta</button>
           </div>
         </div>
-        <div id="motor-vazio" style="padding:40px;text-align:center;color:var(--muted)">Escolha um processo para abrir o Motor de Cálculo PASEP.</div>
-        <iframe id="motor-frame" title="Motor de Cálculo PASEP" style="display:none;width:100%;height:calc(100vh - 120px);border:1px solid var(--border,#e2e8f0);border-radius:10px;background:#fff"></iframe>
+        <div id="motor-vazio" style="padding:40px;text-align:center;color:var(--muted)">Escolha um processo para abrir a Calculadora do PASEP.</div>
+        <iframe id="motor-frame" title="Calculadora do PASEP" style="display:none;width:100%;height:calc(100vh - 120px);border:1px solid var(--border,#e2e8f0);border-radius:10px;background:#fff"></iframe>
       </div>
 
       <div id="tab-tarefas" class="tab-content" style="display:none">
@@ -1529,7 +1529,7 @@ window.addEventListener('message',async ev=>{
     const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva'}[d.t];
     if(tipo==='carregar')motorResponder(ev.source,{t:'carregar',caso:null,config:null,proc:p?{num:p.num,autor:p.autor,resp:p.perito_assistente}:{num:d.num}});
     else if(tipo)motorResponder(ev.source,{t:tipo,ok:false,erro:e.message});
-    toast('Motor PASEP: '+e.message,'error');
+    toast('Calculadora do PASEP: '+e.message,'error');
   }
 });
 
