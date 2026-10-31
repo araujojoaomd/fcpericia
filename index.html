@@ -1525,10 +1525,22 @@ window.addEventListener('message',async ev=>{
       await driveGravar(new Blob([JSON.stringify(d.config)],{type:'application/json'}),MOTOR_CONFIG,DRIVE_ANEXOS_FOLDER_ID);
       motorResponder(ev.source,{t:'config-salva',ok:true});
     }
+    else if(d.t==='anexo-modelo'){
+      await mlCarregarPastaModelos();
+      const a=MODELOS_ANEXO[d.tese];
+      if(!a||!a.modelo){motorResponder(ev.source,{t:'anexo-modelo',reqId:d.reqId,ok:false,erro:'anexo da tese '+d.tese+' não encontrado'});}
+      else{
+        const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${a.modelo}?alt=media&supportsAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+        if(!rr.ok)throw new Error('HTTP '+rr.status+' ao baixar o anexo');
+        const buf=await rr.arrayBuffer(),bytes=new Uint8Array(buf);let b64='';const CH=0x8000;
+        for(let i=0;i<bytes.length;i+=CH)b64+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH));
+        motorResponder(ev.source,{t:'anexo-modelo',reqId:d.reqId,ok:true,b64:btoa(b64),nome:a.nome});
+      }
+    }
   }catch(e){
-    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva'}[d.t];
+    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva','anexo-modelo':'anexo-modelo'}[d.t];
     if(tipo==='carregar')motorResponder(ev.source,{t:'carregar',caso:null,config:null,proc:p?{num:p.num,autor:p.autor,resp:p.perito_assistente}:{num:d.num}});
-    else if(tipo)motorResponder(ev.source,{t:tipo,ok:false,erro:e.message});
+    else if(tipo)motorResponder(ev.source,{t:tipo,reqId:d.reqId,ok:false,erro:e.message});
     toast('Calculadora do PASEP: '+e.message,'error');
   }
 });
