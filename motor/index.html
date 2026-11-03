@@ -1053,7 +1053,7 @@ function tabelas(){
 
 /* ---------- caso ---------- */
 function cfgBase(){var c=null;try{var t=localStorage.getItem("motor-pasep-config");c=t?JSON.parse(t):null;}catch(e){}return c&&c.regras?c:M.configPadrao(DATA.R);}
-function casoVazio(){return {meta:{proc:"",autor:"",resp:"",versao:"2026.2",pre1977:"0",exemplo:false},rows:[],ciencias:{},log:[],analise:null,config:JSON.parse(JSON.stringify(cfgBase()))};}
+function casoVazio(){return {meta:{proc:"",autor:"",resp:"",versao:"2026.2",pre1977:"0",exemplo:false},rows:[],ciencias:{},log:[],analise:null,convLegal:true,config:JSON.parse(JSON.stringify(cfgBase()))};}
 function CFG(){if(!caso.config||!caso.config.regras)caso.config=JSON.parse(JSON.stringify(cfgBase()));return caso.config;}
 function rub(c){var n=M.num(c);if(n===null)return null;var x=CFG().rubricasExtra||{};return x[n]||DATA.R[n]||null;}
 function linha(r,origem){return {id:novoId(),data:r.data,cod:String(r.cod||""),desc:r.desc||"",val:+r.val||0,conv:r.conv||"",aj:+r.aj||0,mf:r.mf||"",satuSaldo:null,origem:origem||"banco",zerado:false,saqueDesc:false,saque:null,just:""};}
@@ -1194,6 +1194,13 @@ function situacaoEtapas(){
 }
 function liberada(i,E){for(var k=0;k<i;k++)if(!E.d[k]&&!ETAPAS[k].opc&&ETAPAS[k].k!=="res")return false;return true;}
 function irPara(k){ESTADO.tab=k;render();window.scrollTo(0,0);}
+function avisarConvLegal(prox){
+  if(ESTADO.tab==="dig"&&!caso.convLegal&&S&&S.leg&&S.leg.ok){
+    var ov=el("div",{class:"overlay",onclick:function(e){if(e.target===ov)ov.remove();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Conversão monetária"},[el("h2",{text:"O padrão é a conversão nas datas legais"}),el("p",{class:"muted",style:"margin:0;white-space:pre-line",text:"Você está com a conversão monetária definida como “Como o banco aplicou”. O padrão da perícia é usar sempre a conversão nas datas legais."}),el("div",{class:"btns"},[el("button",{type:"button",class:"primary",text:"Mudar para datas legais",onclick:function(){ov.remove();caso.convLegal=true;caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Conversões monetárias",data:"",cod:"",desc:"Nas datas legais (Tabela II do laudo)",just:""});irPara(prox.k);}}),el("button",{type:"button",text:"Avançar assim mesmo",onclick:function(){ov.remove();irPara(prox.k);}})])])]);
+    document.getElementById("layer").append(ov);return;
+  }
+  irPara(prox.k);
+}
 function render(){
   S=estado();salvarLocal();
   document.getElementById("bnExemplo").hidden=!caso.meta.exemplo;
@@ -1220,7 +1227,7 @@ function render(){
   var ok=E.d[idx]||ETAPAS[idx].opc;
   bar.append(el("span",{class:"why"+(ok?"":" bad"),text:ok?(prox?"Etapa concluída. Siga para a próxima.":"Fim do passo a passo."):E.m[idx]}));
   if(ESTADO.tab==="res"){bar.append(el("button",{type:"button",class:"big",text:"Planilha (.xlsx)",onclick:exportar}));bar.append(el("button",{type:"button",class:"big",text:"Word (.docx)",onclick:function(){gerarDOCX(apendices());}}));bar.append(el("button",{type:"button",class:"big",text:"Só apêndices (PDF)",onclick:function(){gerarPDF(apendices());}}));bar.append(el("button",{type:"button",class:"big primary",text:"Apêndices + anexo (PDF)",onclick:function(){gerarPDFcomAnexo(apendices());}}));}
-  if(prox&&ESTADO.tab!=="res")bar.append(el("button",{type:"button",class:"big primary",disabled:!ok,text:"Avançar: "+prox.t+" →",onclick:function(){irPara(prox.k);}}));
+  if(prox&&ESTADO.tab!=="res")bar.append(el("button",{type:"button",class:"big primary",disabled:!ok,text:"Avançar: "+prox.t+" →",onclick:function(){avisarConvLegal(prox);}}));
   if(ESTADO.tab==="res")bar.append(el("button",{type:"button",class:"big",text:"Conferência (opcional) →",onclick:function(){irPara("dif");}}));
   rodape();
 }
@@ -1262,17 +1269,13 @@ function vDig(v){
   var abertos=S.P.filter(function(p){return !p.ciente&&p.bloqueia;}),alertas=S.P.filter(function(p){return !p.ciente&&!p.bloqueia;}),cientes=S.P.filter(function(p){return p.ciente;});
   var total=abertos.length+caso.log.filter(function(l){return /Inclusão|Neutralização|Ciência/.test(l.tipo);}).length;
   v.append(cabecalho(2,"Ajustar a digitação","O sistema confere a digitação e aponta, uma de cada vez, o que precisa ser ajustado. Os ajustes não alteram a digitação original: ficam registrados com justificativa.",["Leia a pendência destacada abaixo.","Clique no botão recomendado (em verde-escuro). Se não concordar, use “Não ajustar”.","Repita até não haver pendências. Depois, clique em “Avançar”."]));
-  var foco;
-  if(abertos.length){var p0=abertos[0],ex=explicar(p0);
-    foco=el("div",{class:"focus"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between"},[el("span",{class:"eyebrow",style:"color:var(--crit)",text:"Pendência 1 de "+abertos.length}),el("span",{class:"legend",text:(total-abertos.length)+" resolvida(s) até agora"})]),
-      el("div",{class:"progress"},[el("div",{style:"width:"+(total?Math.round((total-abertos.length)/total*100):0)+"%"})]),
-      el("h3",{text:ex.titulo}),el("p",{style:"margin:0",text:ex.texto}),
-      el("div",{class:"btns"},acoesPendencia(p0,true))]);
-  }else foco=el("div",{class:"focus ok"},[el("h3",{text:"Nenhuma pendência na digitação"}),el("p",{style:"margin:0",text:"A digitação ajustada está pronta. Clique em “Avançar” para seguir para os saques."})]);
-  var lista=el("div",{class:"pgrid"});abertos.slice(1).concat(alertas).concat(cientes).forEach(function(p){lista.append(cartao(p));});
-  v.append(el("div",{style:"display:grid;gap:12px;margin-bottom:14px"},[foco,
-    lista.children.length?el("details",{class:"box"},[el("summary",{text:"Ver todas as pendências e alertas ("+(abertos.length-1>0?abertos.length-1:0)+" pendência(s), "+alertas.length+" alerta(s), "+cientes.length+" ciente(s))"}),el("div",{style:"margin-top:10px"},[lista])]):null,
-    el("div",{class:"btns"},[el("button",{type:"button",class:"small",text:"Incluir uma linha manualmente",onclick:function(){pedirIncluir({});}}),el("span",{class:"legend",text:nIn+" linha(s) incluída(s) · "+nZ+" lançamento(s) zerado(s)"})])]));
+  var nAb=abertos.length,nRes=total-abertos.length,nAl=alertas.length;
+  var cardsPend=el("div",{class:"pgrid"});abertos.concat(cientes).forEach(function(p){cardsPend.append(cartao(p));});
+  var cardsAl=el("div",{class:"pgrid"});alertas.forEach(function(p){cardsAl.append(cartao(p));});
+  function contadorDig(cor,n,label,corpo){return el("details",{class:"box",style:"flex:1;min-width:240px"},[el("summary",{style:"cursor:pointer;display:flex;align-items:baseline;gap:8px"},[el("span",{style:"font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:"+cor},[String(n)]),el("span",{class:"legend"},[label])]),el("div",{style:"margin-top:10px"},[corpo])]);}
+  var blocoPend=contadorDig(nAb?"var(--crit)":"var(--ok)",nAb,"pendência(s) aberta(s)"+(nRes?" · "+nRes+" resolvida(s)":""),(nAb||cientes.length)?cardsPend:el("p",{class:"legend",style:"margin:0",text:"A digitação ajustada está pronta. Clique em “Avançar” para seguir para os saques."}));
+  var blocoAl=contadorDig("var(--warn)",nAl,"alerta(s)",nAl?cardsAl:el("p",{class:"legend",style:"margin:0",text:"Nenhum alerta."}));
+  v.append(el("div",{style:"display:grid;gap:12px;margin-bottom:14px"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:12px"},[blocoPend,blocoAl]),el("div",{class:"btns"},[el("button",{type:"button",class:"small",text:"Incluir uma linha manualmente",onclick:function(){pedirIncluir({});}}),el("span",{class:"legend",text:nIn+" linha(s) incluída(s) · "+nZ+" lançamento(s) zerado(s)"})])]));
   /* conversões monetárias */
   var ctb=el("tbody");(S.leg?S.leg.pares:[]).forEach(function(p){ctb.append(el("tr",{},[el("td",{text:p.marco?p.marco.moeda+" ("+p.marco.eq+")":"—"}),el("td",{text:p.marco?M.br(p.marco.data):"—"}),el("td",{text:p.banco?M.br(p.banco.data)+" (÷ "+p.banco.fator.toLocaleString("pt-BR")+")":"não lançada"}),el("td",{},[p.coincide?pill("Banco = data legal","p-ok"):pill("Diverge","p-warn")])]));});
   var ef=S.efeito?el("p",{class:"legend",style:"margin:0"},["Efeito no saldo final (Tabela Oficial, sem saques): conversões como o banco aplicou "+fmt(S.efeito.banco)+" · nas datas legais "+fmt(S.efeito.legal)+" · diferença "+fmt(S.efeito.legal-S.efeito.banco)+". A diferença vem apenas do arredondamento na conversão."]):null;
