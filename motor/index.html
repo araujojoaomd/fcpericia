@@ -1097,7 +1097,7 @@ window.addEventListener("message",function(ev){
     if(!NUVEM.ultimo&&caso.rows.length)agendarNuvem();
   }
   if(d.t==="salvo"){if(d.ok){NUVEM.ultimo=NUVEM.envio;NUVEM.pend=false;statusNuvem("Salvo no processo às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),"ok");if(JSON.stringify(caso)!==NUVEM.ultimo)agendarNuvem();}else statusNuvem("Não foi possível salvar no processo: "+(d.erro||"erro")+". Clique em “Salvar no processo”.","crit");}
-  if(d.t==="arquivo-salvo")toast(d.ok?"Arquivo também salvo na pasta do processo no Drive.":"O arquivo foi baixado, mas não foi salvo no Drive: "+(d.erro||"erro"));
+  if(d.t==="salvar-agora"){if(NUVEM.carregado)salvarNuvem();return;}if(d.t==="arquivo-salvo")toast(d.ok?"Arquivo também salvo na pasta do processo no Drive.":"O arquivo foi baixado, mas não foi salvo no Drive: "+(d.erro||"erro"));
   if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));
 });
 window.addEventListener("beforeunload",function(e){if(EMB&&NUVEM.pend){salvarNuvem();e.preventDefault();e.returnValue="";}});
@@ -1914,7 +1914,7 @@ function painelTimbrado(){
 /* ---------- eventos ---------- */
 function init(){
   if(EMB){document.body.classList.add("emb");caso=casoVazio();ESTADO.tab="imp";
-    document.getElementById("btSalvar").textContent="Salvar no processo";}
+    document.getElementById("btSalvar").textContent="Salvar no processo";var _inC=document.getElementById("inCaso");if(_inC&&_inC.parentNode)_inC.parentNode.style.display="none";var _bN=document.getElementById("btNovo");if(_bN)_bN.style.display="none";var _bS=document.getElementById("btSalvar");if(_bS)_bS.style.display="none";}
   else{caso=lerLocal();if(!caso||!caso.rows)carregarExemplo();}
   CFG();
   function novo(){caso=casoVazio();ESTADO.tab="imp";render();toast("Caso novo. Importe a planilha de digitação.");}

@@ -294,15 +294,35 @@ tbody tr:nth-child(even){background:#fafafa}
     <div id="content" style="display:none">
 
       <div id="tab-motor" class="tab-content" style="display:none">
-        <div class="topbar">
-          <div><div class="page-title">Calculadora do PASEP</div><p class="page-sub" style="margin:2px 0 0">O caso é salvo na pasta do processo no Drive (Motor_PASEP_caso.json), e os apêndices gerados também vão para essa pasta.</p></div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select class="filter-select" id="motor-proc" onchange="abrirMotor(this.value)" style="min-width:320px"></select>
-            <button class="act-btn act-gray" onclick="abrirPastaProcesso(document.getElementById('motor-proc').value)">📎 Pasta</button>
+        <!-- Estado 1: buscador de processos -->
+        <div id="motor-busca">
+          <div class="topbar">
+            <div><div class="page-title">Calculadora do PASEP</div><p class="page-sub" style="margin:2px 0 0">Escolha um processo para abrir o caso. Cada caso gira em torno de um processo: abra, trabalhe, salve no processo e depois abra outro.</p></div>
+          </div>
+          <div class="card">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+              <input class="filter-input" id="motor-q" placeholder="Buscar número, autor, réu..." oninput="motorRenderBusca()" style="flex:1;min-width:220px">
+              <span id="motor-count" style="font-size:11.5px;color:var(--muted)"></span>
+            </div>
+            <div id="motor-scope" style="font-size:11px;color:var(--muted);margin:2px 0 12px"></div>
+            <div id="motor-reslist" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto"></div>
           </div>
         </div>
-        <div id="motor-vazio" style="padding:40px;text-align:center;color:var(--muted)">Escolha um processo para abrir a Calculadora do PASEP.</div>
-        <iframe id="motor-frame" title="Calculadora do PASEP" style="display:none;width:100%;height:calc(100vh - 120px);border:1px solid var(--border,#e2e8f0);border-radius:10px;background:#fff"></iframe>
+        <!-- Estado 2: caso aberto -->
+        <div id="motor-caso" style="display:none">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--white);border:1px solid var(--gray3);border-radius:12px;padding:12px 15px;box-shadow:0 2px 12px rgba(0,0,0,.05);margin-bottom:14px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.06em">Processo atual</div>
+              <div style="font-weight:700;font-size:14px" id="motor-cur-autor">—</div>
+              <div style="font-size:11.5px;color:var(--muted)" id="motor-cur-num">—</div>
+            </div>
+            <div style="flex:1"></div>
+            <button class="act-btn act-gray" onclick="motorSalvarAgora()">💾 Salvar no processo</button>
+            <button class="act-btn act-gray" onclick="abrirPastaProcesso(motorNum)">📎 Pasta</button>
+            <button class="primary-btn btn-blue" onclick="motorTrocarCaso()">Abrir outro caso</button>
+          </div>
+          <iframe id="motor-frame" title="Calculadora do PASEP" style="width:100%;height:calc(100vh - 150px);border:1px solid var(--gray3);border-radius:10px;background:#fff"></iframe>
+        </div>
       </div>
 
       <div id="tab-tarefas" class="tab-content" style="display:none">
@@ -1237,7 +1257,7 @@ async function carregarDados(){
 function aplicarFiltroGlobal(){perfilAtual=document.getElementById('perfilSelect').value;renderTudo();}
 function processosFiltradosPorPerfil(){return perfilAtual?processos.filter(p=>p.perito_assistente===perfilAtual):processos;}
 function switchTab(tab){document.querySelectorAll('.tab-content').forEach(el=>el.style.display='none');document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));document.getElementById('tab-'+tab).style.display='block';document.querySelector(`[data-tab="${tab}"]`).classList.add('active');}
-function renderTudo(){renderDashboard();renderTarefas();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();renderAndamentoTJSE();}
+function renderTudo(){renderDashboard();renderTarefas();renderProcessos();renderMovimentacoes();renderAlvaras();renderConfig();popularFiltros();popularPerfilSelect();popularRelFiltro();renderRelatorios();renderAndamentoTJSE();motorRenderBusca();}
 // ─── ANDAMENTO TJSE (leitura do Monitor) ──────────────────────────────────────
 function tjseParseData(s){
   s=String(s||'').trim();if(!s)return 0;
@@ -1462,20 +1482,60 @@ const MOTOR_URL='motor/index.html';
 const MOTOR_CASO='Motor_PASEP_caso.json';
 const MOTOR_CONFIG='Motor_PASEP_configuracao_equipe.json';
 let motorNum='';
-function motorPopularSelect(){
-  const sel=document.getElementById('motor-proc');if(!sel)return;
-  const lista=processos.filter(p=>!/cancel/i.test(p.etapa_atual||'')).slice().sort((a,b)=>String(a.autor||'').localeCompare(String(b.autor||''),'pt-BR'));
-  sel.innerHTML='<option value="">— Escolha o processo —</option>'+lista.map(p=>`<option value="${p.num}"${p.num===motorNum?' selected':''}>${p.autor||'(sem autor)'} — ${p.num}</option>`).join('');
+function motorProcsBusca(){
+  const q=(document.getElementById('motor-q')||{value:''}).value.toLowerCase().trim();
+  return processosFiltradosPorPerfil()
+    .filter(p=>!/cancel/i.test(p.etapa_atual||''))
+    .filter(p=>!q||[p.num,p.autor,p.reu,p.assunto].join(' ').toLowerCase().includes(q))
+    .slice().sort((a,b)=>String(a.autor||'').localeCompare(String(b.autor||''),'pt-BR'));
+}
+function motorRenderBusca(){
+  const box=document.getElementById('motor-reslist');if(!box)return;
+  const total=processosFiltradosPorPerfil().filter(p=>!/cancel/i.test(p.etapa_atual||'')).length;
+  const lista=motorProcsBusca();
+  const sc=document.getElementById('motor-scope');
+  if(sc)sc.innerHTML=perfilAtual?('Mostrando os processos de <b style="color:var(--blue)">'+perfilAtual+'</b>. Troque o Perfil na barra lateral para ver outros.'):'Perfil <b style="color:var(--blue)">Coordenador Geral</b>: todos os processos.';
+  const ct=document.getElementById('motor-count');if(ct)ct.textContent=lista.length+' de '+total;
+  if(!lista.length){box.innerHTML='<div style="padding:28px;text-align:center;color:var(--faint);font-size:13px">Nenhum processo encontrado.</div>';return;}
+  box.innerHTML=lista.map(p=>`<button type="button" onclick="abrirMotor('${String(p.num).replace(/'/g,"\\'")}')" style="display:flex;gap:12px;align-items:center;padding:12px 14px;border:1.5px solid var(--gray3);border-radius:11px;background:var(--gray);cursor:pointer;text-align:left;font-family:inherit;width:100%" onmouseover="this.style.borderColor='var(--blue-l)';this.style.background='#fff'" onmouseout="this.style.borderColor='var(--gray3)';this.style.background='var(--gray)'">
+      <span style="flex:1;min-width:0"><span style="font-weight:600;font-size:13.5px;color:var(--text);display:block">${p.autor||'(sem autor)'}</span>
+      <span style="font-size:11.5px;color:var(--muted);display:block;margin-top:2px"><b style="color:var(--navy3)">${p.tribunal||'—'}</b> · ${p.num} · réu: ${p.reu||'—'}</span></span>
+      <span style="font-size:12px;font-weight:700;color:var(--blue);flex-shrink:0">Abrir →</span></button>`).join('');
 }
 function abrirMotor(num){
-  switchTab('motor');motorPopularSelect();
-  if(num===undefined){if(!motorNum)return;num=motorNum;}
-  const fr=document.getElementById('motor-frame'),vz=document.getElementById('motor-vazio');
-  if(!num){motorNum='';fr.style.display='none';fr.src='about:blank';vz.style.display='block';return;}
-  if(num===motorNum&&fr.style.display==='block')return;
-  motorNum=num;document.getElementById('motor-proc').value=num;
-  vz.style.display='none';fr.style.display='block';
-  fr.src=`${MOTOR_URL}?fc=1&proc=${encodeURIComponent(num)}&v=${Date.now()}`;
+  switchTab('motor');
+  const busca=document.getElementById('motor-busca'),caso=document.getElementById('motor-caso');
+  if(num===undefined){ // clique no menu lateral: mantém o caso aberto, ou mostra o buscador
+    if(motorNum){busca.style.display='none';caso.style.display='block';return;}
+    num='';
+  }
+  if(!num){ // volta ao buscador
+    motorNum='';const fr=document.getElementById('motor-frame');if(fr)fr.src='about:blank';
+    caso.style.display='none';busca.style.display='block';motorRenderBusca();return;
+  }
+  motorNum=num;
+  const p=processos.find(x=>x.num===num);
+  document.getElementById('motor-cur-autor').textContent=p?(p.autor||'(sem autor)'):num;
+  document.getElementById('motor-cur-num').textContent=p?((p.tribunal?p.tribunal+' · ':'')+num):num;
+  busca.style.display='none';caso.style.display='block';
+  document.getElementById('motor-frame').src=`${MOTOR_URL}?fc=1&proc=${encodeURIComponent(num)}&v=${Date.now()}`;
+}
+function motorSalvarAgora(){
+  const fr=document.getElementById('motor-frame');
+  if(fr&&fr.contentWindow)fr.contentWindow.postMessage({origem:'fc-pericia',t:'salvar-agora'},location.origin);
+}
+function motorTrocarCaso(){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999';
+  ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:22px;max-width:400px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div style="font-family:'Playfair Display',serif;font-size:17px;margin-bottom:7px">Abrir outro caso</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;line-height:1.5">O caso atual é salvo automaticamente no processo. Deseja voltar ao buscador e abrir outro?</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="act-btn act-gray" data-x>Cancelar</button><button class="primary-btn btn-blue" data-ok>Abrir outro caso</button></div></div>`;
+  document.body.appendChild(ov);
+  const fecha=()=>ov.remove();
+  ov.querySelector('[data-x]').onclick=fecha;
+  ov.addEventListener('click',e=>{if(e.target===ov)fecha();});
+  ov.querySelector('[data-ok]').onclick=()=>{fecha();abrirMotor('');};
 }
 async function driveBuscarArquivo(nome,parent){
   const q=encodeURIComponent(`'${parent}' in parents and name='${nome.replace(/'/g,"\\'")}' and trashed=false`);
