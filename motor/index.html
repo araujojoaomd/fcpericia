@@ -1578,7 +1578,8 @@ function relatorio(lista){
     return ap.num+": "+t.linhas.length+" linhas"+(k.length?" · códigos ocultos: "+k.map(function(c){return c+" ("+t.ocult[c]+")";}).join(", "):" · nenhum código oculto");}).join("\n");
 }
 function baixar(blob,nome){var a=el("a",{href:URL.createObjectURL(blob),download:nome});document.body.append(a);a.click();a.remove();if(EMB&&!/^Caso_|Configuracao_/.test(nome))blobB64(blob,function(b){fcPost({t:"arquivo",num:EMB_PROC,nome:nome,mime:blob.type||"application/octet-stream",b64:b});});}
-function nomeArq(lista,ext){return "Apendices_"+(caso.meta.proc||"caso").replace(/[^\w.-]+/g,"_")+(lista.length===1?"_"+lista[0].num:"")+"."+ext;}
+function sufixoApend(){var t=(caso.analise&&caso.analise.tese)||"OFICIAL",map={"OFICIAL":"OF","TJLP":"TJLP","EXP":"EXP","TJLP+EXP":"TJLP-EXP"},nSaq=caso.rows.filter(function(r){return r.saqueDesc;}).length,saq=(caso.saquesResp==="sim"&&nSaq>0)?"cSaque":"sSaque";return "_"+(map[t]||"OF")+"_"+saq;}
+function nomeArq(lista,ext){return "Apendices_"+(caso.meta.proc||"caso").replace(/[^\w.-]+/g,"_")+sufixoApend()+(lista.length===1?"_"+lista[0].num:"")+"."+ext;}
 function concluido(tipo,lista){caso.exportado=new Date().toISOString();render();
   dialogo(tipo+" gerado",relatorio(lista),[],"Fechar",function(){});}
 
@@ -1706,7 +1707,7 @@ function exportar(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aj),"Digitação ajustada");
   var lg=[["QUANDO","TIPO","DATA","CÓDIGO","DESCRIÇÃO","JUSTIFICATIVA","RESPONSÁVEL"]].concat(caso.log.map(function(l){return [new Date(l.quando).toLocaleString("pt-BR"),l.tipo,l.data?M.br(l.data):"",l.cod,l.desc,l.just,l.resp];}));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(lg),"Registro de ajustes");
-  var nome="Apendices_"+(caso.meta.proc||"caso").replace(/[^\w.-]+/g,"_")+".xlsx";
+  var nome="Apendices_"+(caso.meta.proc||"caso").replace(/[^\w.-]+/g,"_")+sufixoApend()+".xlsx";
   try{XLSX.writeFile(wb,nome);caso.exportado=new Date().toISOString();render();toast("Arquivo "+nome+" gerado.");}catch(e){toast("O download foi bloqueado neste ambiente. Use a versão em arquivo.");}
 }
 
@@ -1964,7 +1965,7 @@ init();
       (await out.copyPages(apDoc,apDoc.getPageIndices())).forEach(function(p){out.addPage(p);});
       (await out.copyPages(anDoc,anDoc.getPageIndices())).forEach(function(p){out.addPage(p);});
       var merged=await out.save();
-      baixar(new Blob([merged],{type:"application/pdf"}),"Apendices_e_Anexos_"+((caso.meta&&caso.meta.proc)||"caso").replace(/[^\w.-]+/g,"_")+".pdf");
+      baixar(new Blob([merged],{type:"application/pdf"}),"Apendices_e_Anexos_"+((caso.meta&&caso.meta.proc)||"caso").replace(/[^\w.-]+/g,"_")+sufixoApend()+".pdf");
       concluido("PDF final (apêndices + anexo)",lista); stn("");
     }catch(e){ stn(""); toast("Não foi possível gerar o PDF final: "+e.message); }
   };

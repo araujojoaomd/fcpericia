@@ -1481,6 +1481,7 @@ async function abrirPastaProcesso(num){
 const MOTOR_URL='motor/index.html';
 const MOTOR_CASO='Motor_PASEP_caso.json';
 const MOTOR_CONFIG='Motor_PASEP_configuracao_equipe.json';
+const SUBPASTA_CALC='Calculadora PASEP';
 let motorNum='';
 function motorProcsBusca(){
   const q=(document.getElementById('motor-q')||{value:''}).value.toLowerCase().trim();
@@ -1553,6 +1554,13 @@ async function driveGravar(blob,nome,parentId){
   const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${ex.id}?uploadType=media&fields=id,webViewLink&supportsAllDrives=true`,{method:'PATCH',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':blob.type||'application/octet-stream'},body:blob});
   if(!r.ok)handleApiError(r.status);return await r.json();
 }
+async function driveSubpastaCalc(procFolderId,criar){
+  let id=await driveBuscarSubpasta(SUBPASTA_CALC,procFolderId);
+  if(id||!criar)return id;
+  const r=await fetch('https://www.googleapis.com/drive/v3/files?fields=id&supportsAllDrives=true',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({name:SUBPASTA_CALC,mimeType:'application/vnd.google-apps.folder',parents:[procFolderId]})});
+  if(!r.ok)handleApiError(r.status);
+  return (await r.json()).id;
+}
 function motorResponder(src,m){try{src.postMessage(Object.assign({origem:'fc-pericia'},m),location.origin);}catch(e){}}
 window.addEventListener('message',async ev=>{
   const d=ev.data;if(ev.origin!==location.origin||!d||d.origem!=='motor-pasep')return;
@@ -1563,21 +1571,26 @@ window.addEventListener('message',async ev=>{
       let caso=null,quando=null,config=null;
       if(DRIVE_ANEXOS_FOLDER_ID&&accessToken){
         const cf=await driveBuscarArquivo(MOTOR_CONFIG,DRIVE_ANEXOS_FOLDER_ID);if(cf)config=await driveLerJSON(cf.id);
-        if(p){const sub=await driveBuscarSubpasta(nomeSubpasta(p),DRIVE_ANEXOS_FOLDER_ID);
-          if(sub){const f=await driveBuscarArquivo(MOTOR_CASO,sub);if(f){caso=await driveLerJSON(f.id);quando=f.modifiedTime;}}}
+        if(p){const proc=await driveBuscarSubpasta(nomeSubpasta(p),DRIVE_ANEXOS_FOLDER_ID);
+          if(proc){let f=null;const sub=await driveSubpastaCalc(proc,false);
+            if(sub)f=await driveBuscarArquivo(MOTOR_CASO,sub);
+            if(!f)f=await driveBuscarArquivo(MOTOR_CASO,proc); /* compat: casos salvos antes da subpasta */
+            if(f){caso=await driveLerJSON(f.id);quando=f.modifiedTime;}}}
       }
       motorResponder(ev.source,{t:'carregar',caso,quando,config,proc:p?{num:p.num,autor:p.autor,reu:p.reu,vara:p.vara,resp:p.perito_assistente}:{num:d.num}});
     }
     else if(d.t==='salvar'){
       if(!p)throw new Error('processo não encontrado');
-      const sub=await driveAcharOuCriarSubpasta(p);
+      const proc=await driveAcharOuCriarSubpasta(p);
+      const sub=await driveSubpastaCalc(proc,true);
       await driveGravar(new Blob([JSON.stringify(d.caso)],{type:'application/json'}),MOTOR_CASO,sub);
       motorResponder(ev.source,{t:'salvo',ok:true});
     }
     else if(d.t==='arquivo'){
       if(!p)throw new Error('processo não encontrado');
       const bin=atob(d.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
-      const sub=await driveAcharOuCriarSubpasta(p);
+      const proc=await driveAcharOuCriarSubpasta(p);
+      const sub=await driveSubpastaCalc(proc,true);
       await driveGravar(new Blob([u],{type:d.mime}),String(d.nome).replace(/[\\/]/g,'_'),sub);
       motorResponder(ev.source,{t:'arquivo-salvo',ok:true});
     }
