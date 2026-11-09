@@ -1098,7 +1098,7 @@ window.addEventListener("message",function(ev){
   }
   if(d.t==="salvo"){if(d.ok){NUVEM.ultimo=NUVEM.envio;NUVEM.pend=false;statusNuvem("Salvo no processo às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),"ok");if(JSON.stringify(caso)!==NUVEM.ultimo)agendarNuvem();}else statusNuvem("Não foi possível salvar no processo: "+(d.erro||"erro")+". Clique em “Salvar no processo”.","crit");}
   if(d.t==="salvar-agora"){if(NUVEM.carregado)salvarNuvem();return;}if(d.t==="arquivo-salvo")toast(d.ok?"Arquivo também salvo na pasta do processo no Drive.":"O arquivo foi baixado, mas não foi salvo no Drive: "+(d.erro||"erro"));
-  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));
+  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));if(d.t==="diligencia-pronta"){var _b=document.getElementById("btDilGerar");if(_b){_b.disabled=false;_b.textContent="📄 Gerar diligência";}toast(d.ok?"Diligência gerada e salva na pasta do processo (Calculadora PASEP).":"Não foi possível gerar a diligência: "+(d.erro||"erro"));}
 });
 window.addEventListener("beforeunload",function(e){if(EMB&&NUVEM.pend){salvarNuvem();e.preventDefault();e.returnValue="";}});
 var EMB=window.parent!==window&&/[?&]fc=1/.test(location.search),EMB_PROC=(location.search.match(/[?&]proc=([^&]*)/)||[])[1];EMB_PROC=EMB_PROC?decodeURIComponent(EMB_PROC):"";
@@ -1419,6 +1419,30 @@ function vSaq(v){
     el("div",{class:"pgrid"},opts.map(function(o){return el("label",{class:"opt"},[el("input",{type:"radio",name:"saqResp",id:"sr-"+o[0],checked:R===o[0],onchange:function(){caso.saquesResp=o[0];caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Pedido de saques",data:"",cod:"",desc:o[1],just:""});render();}}),el("span",{},[el("b",{text:o[1]}),el("span",{class:"legend",style:"display:block",text:o[2]})])]);}))]));
   if(R!=="sim")return;
   var deb=caso.rows.filter(function(r){return M.valAjustado(r)<0||(r.saqueDesc&&r.val<0);});
+  if(deb.length){
+    var dtb=el("tbody");
+    deb.forEach(function(r){
+      var b=blocoAtual(r);
+      var incl=(r.diligIncl===undefined)?(b!=="?"):!!r.diligIncl;
+      var parte=b==="A"?"Parte ré (Banco do Brasil)":b==="B"?"Parte autora":"—";
+      dtb.append(el("tr",{class:b==="?"?"":(incl?"":"zer")},[
+        el("td",{},[b==="?"?el("span",{class:"legend",text:"classificar →"}):el("input",{type:"checkbox",checked:incl,"aria-label":"Incluir na diligência o lançamento de "+M.br(r.data),onchange:function(e){r.diligIncl=e.target.checked;render();}})]),
+        el("td",{text:M.br(r.data)}),el("td",{text:r.cod}),el("td",{text:r.desc}),el("td",{class:"num v",text:fmt(r.val)}),
+        el("td",{class:"c"},[b==="?"?el("button",{type:"button",class:"small",text:"Classificar",onclick:function(){pedirTipoPag(r);}}):pill(parte,b==="A"?"p-crit":"p-acc")])
+      ]));
+    });
+    var coletarDilig=function(){var A=[],B=[],NC=[];deb.forEach(function(r){var b=blocoAtual(r);if(b==="?"){NC.push(r);return;}var incl=(r.diligIncl===undefined)?true:!!r.diligIncl;if(!incl)return;var it={data:r.data,dataBr:M.br(r.data),cod:String(r.cod||""),desc:r.desc||"",val:r.val,valBr:fmt(r.val)};if(b==="B")B.push(it);else A.push(it);});return {autora:B,reu:A,naoClass:NC};};
+    var enviarDilig=function(g){var bt=document.getElementById("btDilGerar");if(bt){bt.disabled=true;bt.textContent="⏳ Gerando…";}fcPost({t:"gerar-diligencia",num:EMB_PROC,reqId:"dil"+Date.now(),autora:g.autora,reu:g.reu});};
+    var gerarDilig=function(){var g=coletarDilig();if(!g.autora.length&&!g.reu.length){toast("Marque ao menos um lançamento classificado para diligenciar.");return;}if(g.naoClass.length){dialogo("Lançamentos não classificados",g.naoClass.length+" lançamento(s) ainda sem classificação (caixa × conta/folha) ficarão de fora da diligência. Classifique-os antes se quiser incluí-los.",[],"Gerar assim mesmo",function(){enviarDilig(g);});return;}enviarDilig(g);};
+    var nA=0,nB=0,nNC=0;deb.forEach(function(r){var b=blocoAtual(r);if(b==="?"){nNC++;return;}var incl=(r.diligIncl===undefined)?true:!!r.diligIncl;if(!incl)return;if(b==="B")nB++;else nA++;});
+    v.append(el("div",{class:"panel",style:"margin-bottom:14px"},[
+      el("h2",{text:"Diligência — solicitação de documentos"}),
+      el("p",{class:"legend",style:"margin:0 0 10px",text:"Antes de desconsiderar, você pode pedir ao Juízo que intime as partes a comprovar os saques. Pelo Tema 1.300: saque no caixa da agência (Bloco A) → prova a cargo do Banco (réu); crédito em conta ou folha (Bloco B) → prova a cargo do autor. Um lançamento “não classificado” precisa ser classificado para entrar na diligência."}),
+      el("div",{class:"kpis",style:"margin-bottom:10px"},[kpi("Parte autora (item a)",String(nB)),kpi("Parte ré (item b)",String(nA)),kpi("Não classificados",String(nNC),nNC?"p-warn":"p-acc")]),
+      el("div",{class:"scroll"},[el("table",{},[el("thead",{},[el("tr",{},["Diligenciar","Data","Código","Descrição","Valor","Prova a cargo de"].map(function(h,k){return el("th",{class:k===4?"num":k===5?"c":"",text:h});}))]),dtb])]),
+      el("div",{class:"btns",style:"margin-top:10px"},[EMB?el("button",{type:"button",class:"primary",id:"btDilGerar",text:"📄 Gerar diligência",onclick:gerarDilig}):el("span",{class:"legend",text:"A geração da diligência fica disponível dentro do FC Perícia."})])
+    ]));
+  }
   var p=el("div",{class:"panel"},[el("h2",{text:"Débitos da conta"}),
     el("p",{class:"legend",style:"margin:0",text:"Marque somente os saques com pedido específico de desconsideração. Pelo Tema 1.300 do STJ, quando o saque foi pago no caixa da agência, cabe ao Banco provar o pagamento; quando foi creditado em conta ou na folha de pagamento, cabe ao autor provar que não recebeu. O tipo de pagamento é sugerido pela rubrica; a decisão é do Perito."})]);
   if(!deb.length){p.append(el("p",{class:"muted",text:"Nenhum débito na base ajustada."}));v.append(p);return;}
