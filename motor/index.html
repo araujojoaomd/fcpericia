@@ -1078,7 +1078,7 @@ function aplicarAjustada(aj,just){
 }
 function salvarLocal(){try{localStorage.setItem(CHAVE_CASO,JSON.stringify(caso));}catch(e){}if(EMB)agendarNuvem();}
 /* ---- integração com o FC Perícia (modo incorporado) ---- */
-var NUVEM={ultimo:null,timer:null,pend:false,carregado:false};
+var NUVEM={ultimo:null,timer:null,pend:false,carregado:false};var diligPend=null;
 function fcPost(m){try{window.parent.postMessage(Object.assign({origem:"motor-pasep"},m),location.origin);}catch(e){}}
 function statusNuvem(t,cls){var e=document.getElementById("stNuvem");if(e){e.textContent=t;e.className="legend nuvem "+(cls||"");}}
 function agendarNuvem(){if(!NUVEM.carregado)return;var j=JSON.stringify(caso);if(j===NUVEM.ultimo)return;NUVEM.pend=true;statusNuvem("Alterações ainda não salvas no processo","warn");clearTimeout(NUVEM.timer);NUVEM.timer=setTimeout(salvarNuvem,4000);}
@@ -1098,7 +1098,7 @@ window.addEventListener("message",function(ev){
   }
   if(d.t==="salvo"){if(d.ok){NUVEM.ultimo=NUVEM.envio;NUVEM.pend=false;statusNuvem("Salvo no processo às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),"ok");if(JSON.stringify(caso)!==NUVEM.ultimo)agendarNuvem();}else statusNuvem("Não foi possível salvar no processo: "+(d.erro||"erro")+". Clique em “Salvar no processo”.","crit");}
   if(d.t==="salvar-agora"){if(NUVEM.carregado)salvarNuvem();return;}if(d.t==="arquivo-salvo")toast(d.ok?"Arquivo também salvo na pasta do processo no Drive.":"O arquivo foi baixado, mas não foi salvo no Drive: "+(d.erro||"erro"));
-  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));if(d.t==="diligencia-pronta"){var _b=document.getElementById("btDilGerar");if(_b){_b.disabled=false;_b.textContent="📄 Gerar diligência";}toast(d.ok?"Diligência gerada e salva na pasta do processo (Calculadora PASEP).":"Não foi possível gerar a diligência: "+(d.erro||"erro"));}
+  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));if(d.t==="diligencia-pronta"){var _b=document.getElementById("btDilGerar");if(_b){_b.disabled=false;_b.textContent="📄 Gerar diligência";}if(d.ok&&diligPend){caso.rows.forEach(function(r){r.diligenciado=false;if(r.diligData)delete r.diligData;});var _hj=new Date().toISOString().slice(0,10);caso.rows.forEach(function(r){if(diligPend.indexOf(r.id)>=0){r.diligenciado=true;r.diligData=_hj;}});diligPend=null;salvarLocal();render();}toast(d.ok?"Diligência gerada e salva na pasta do processo (Calculadora PASEP).":"Não foi possível gerar a diligência: "+(d.erro||"erro"));}
 });
 window.addEventListener("beforeunload",function(e){if(EMB&&NUVEM.pend){salvarNuvem();e.preventDefault();e.returnValue="";}});
 var EMB=window.parent!==window&&/[?&]fc=1/.test(location.search),EMB_PROC=(location.search.match(/[?&]proc=([^&]*)/)||[])[1];EMB_PROC=EMB_PROC?decodeURIComponent(EMB_PROC):"";
@@ -1428,11 +1428,11 @@ function vSaq(v){
       dtb.append(el("tr",{class:b==="?"?"":(incl?"":"zer")},[
         el("td",{},[b==="?"?el("span",{class:"legend",text:"classificar →"}):el("input",{type:"checkbox",checked:incl,"aria-label":"Incluir na diligência o lançamento de "+M.br(r.data),onchange:function(e){r.diligIncl=e.target.checked;render();}})]),
         el("td",{text:M.br(r.data)}),el("td",{text:r.cod}),el("td",{text:r.desc}),el("td",{class:"num v",text:fmt(r.val)}),
-        el("td",{class:"c"},[b==="?"?el("button",{type:"button",class:"small",text:"Classificar",onclick:function(){pedirTipoPag(r);}}):pill(parte,b==="A"?"p-crit":"p-acc")])
+        el("td",{class:"c"},[b==="?"?el("button",{type:"button",class:"small",text:"Classificar",onclick:function(){pedirTipoPag(r);}}):pill(parte,b==="A"?"p-crit":"p-acc"),r.diligenciado?el("span",{class:"legend",style:"display:block",text:"✓ já diligenciado "+M.br(r.diligData)}):null])
       ]));
     });
     var coletarDilig=function(){var A=[],B=[],NC=[];deb.forEach(function(r){var b=blocoAtual(r);if(b==="?"){NC.push(r);return;}var incl=(r.diligIncl===undefined)?true:!!r.diligIncl;if(!incl)return;var it={data:r.data,dataBr:M.br(r.data),cod:String(r.cod||""),desc:r.desc||"",val:r.val,valBr:fmt(r.val)};if(b==="B")B.push(it);else A.push(it);});return {autora:B,reu:A,naoClass:NC};};
-    var enviarDilig=function(g){var bt=document.getElementById("btDilGerar");if(bt){bt.disabled=true;bt.textContent="⏳ Gerando…";}fcPost({t:"gerar-diligencia",num:EMB_PROC,reqId:"dil"+Date.now(),autora:g.autora,reu:g.reu});};
+    var enviarDilig=function(g){var bt=document.getElementById("btDilGerar");if(bt){bt.disabled=true;bt.textContent="⏳ Gerando…";}diligPend=deb.filter(function(r){var b=blocoAtual(r);if(b==="?")return false;var incl=(r.diligIncl===undefined)?true:!!r.diligIncl;return incl;}).map(function(r){return r.id;});fcPost({t:"gerar-diligencia",num:EMB_PROC,reqId:"dil"+Date.now(),autora:g.autora,reu:g.reu});};
     var gerarDilig=function(){var g=coletarDilig();if(!g.autora.length&&!g.reu.length){toast("Marque ao menos um lançamento classificado para diligenciar.");return;}if(g.naoClass.length){dialogo("Lançamentos não classificados",g.naoClass.length+" lançamento(s) ainda sem classificação (caixa × conta/folha) ficarão de fora da diligência. Classifique-os antes se quiser incluí-los.",[],"Gerar assim mesmo",function(){enviarDilig(g);});return;}enviarDilig(g);};
     var nA=0,nB=0,nNC=0;deb.forEach(function(r){var b=blocoAtual(r);if(b==="?"){nNC++;return;}var incl=(r.diligIncl===undefined)?true:!!r.diligIncl;if(!incl)return;if(b==="B")nB++;else nA++;});
     v.append(el("div",{class:"panel",style:"margin-bottom:14px"},[
@@ -1454,14 +1454,14 @@ function vSaq(v){
         if(e.target.checked){dialogo("Desconsiderar saque",M.br(r.data)+" · "+r.desc+" · "+fmt(r.val),[{k:"fund",label:"Fundamento",type:"area",v:"Pedido específico nas alegações do autor; "+(bloco==="A"?"saque no caixa da agência, ônus da prova do Banco (Tema 1.300).":"crédito em conta ou folha; prova específica nos autos (Tema 1.300).")},{k:"folha",label:"Folha da prova",v:""}],"Desconsiderar",function(x){if(!x.fund)return "Informe o fundamento.";r.saqueDesc=true;r.saque={bloco:bloco,fund:x.fund,folha:x.folha};registrar("Saque desconsiderado",r,x.fund);render();});e.target.checked=false;}
         else{r.saqueDesc=false;registrar("Saque restabelecido",r,"");render();}}})]),
       el("td",{text:M.br(r.data)}),el("td",{text:r.cod}),el("td",{text:r.desc}),el("td",{class:"num v",text:fmt(r.val)}),
-      el("td",{class:"c"},[el("button",{type:"button",class:"trbtn",title:"Alterar o tipo de pagamento deste lançamento",onclick:function(){pedirTipoPag(r);}},[pill(TIPOPAG[bloco]?TIPOPAG[bloco][0]:TIPOPAG["?"][0],bloco==="A"?"p-crit":bloco==="B"?"p-acc":"p-warn"),el("span",{class:"ed",text:"✎"})]),el("span",{class:"legend",style:"display:block",text:(TIPOPAG[bloco]||TIPOPAG["?"])[1]}),
+      el("td",{class:"c"},[r.diligenciado?pill("✓ "+M.br(r.diligData),"p-acc"):el("span",{class:"legend",text:"—"})]),el("td",{class:"c"},[el("button",{type:"button",class:"trbtn",title:"Alterar o tipo de pagamento deste lançamento",onclick:function(){pedirTipoPag(r);}},[pill(TIPOPAG[bloco]?TIPOPAG[bloco][0]:TIPOPAG["?"][0],bloco==="A"?"p-crit":bloco==="B"?"p-acc":"p-warn"),el("span",{class:"ed",text:"✎"})]),el("span",{class:"legend",style:"display:block",text:(TIPOPAG[bloco]||TIPOPAG["?"])[1]}),
         r.tipoPagManual?el("span",{class:"manual",title:"Justificativa: "+r.tipoPagManual.just,text:"Alteração manual · config.: "+TIPOPAG[cfgB][0]}):null,
         r.tipoPagManual?el("button",{type:"button",class:"small link",text:"Desfazer",onclick:function(){var ant=TIPOPAG[r.tipoPagManual.tipo][0];delete r.tipoPagManual;if(r.saque)r.saque.bloco=cfgB;registrar("Tipo de pagamento restabelecido conforme a configuração ("+TIPOPAG[cfgB][0]+"; era "+ant+")",r,"");render();}}):null]),
       el("td",{text:r.saque&&r.saqueDesc?r.saque.fund+(r.saque.folha?" (fl. "+r.saque.folha+")":""):""})]));
   });
-  p.append(el("div",{class:"scroll"},[el("table",{},[el("thead",{},[el("tr",{},["Desconsiderar","Data","Código","Descrição","Valor","Tipo de pagamento (Tema 1.300)","Fundamento"].map(function(h,k){return el("th",{class:k===4?"num":k===5?"c":"",text:h});}))]),tb])]));
+  p.append(el("div",{class:"scroll"},[el("table",{},[el("thead",{},[el("tr",{},["Desconsiderar","Data","Código","Descrição","Valor","Diligenciado","Tipo de pagamento (Tema 1.300)","Fundamento"].map(function(h,k){return el("th",{class:k===4?"num":(k===5||k===6)?"c":"",text:h});}))]),tb])]));
   var n=caso.rows.filter(function(r){return r.saqueDesc;}).length;
-  v.append(el("div",{class:"kpis",style:"margin-bottom:14px"},[kpi("Débitos",String(deb.length)),kpi("Desconsiderados",String(n)),kpi("Variante com saques",n?"Gerada":"Não gerada",n?"p-acc":"p-warn")]),p);
+  var nDilig=caso.rows.filter(function(r){return r.diligenciado;}).length;var nDescSemDil=caso.rows.filter(function(r){return r.saqueDesc&&!r.diligenciado;}).length;v.append(el("div",{class:"kpis",style:"margin-bottom:14px"},[kpi("Débitos",String(deb.length)),kpi("Diligenciados",String(nDilig)),kpi("Desconsiderados",String(n)),kpi("Desconsid. sem diligência",String(nDescSemDil),nDescSemDil?"p-warn":"p-acc"),kpi("Variante com saques",n?"Gerada":"Não gerada",n?"p-acc":"p-warn")]),p);
 }
 
 function bloqueio(v){
