@@ -1550,6 +1550,7 @@ function vAp(v){
 }
 function notasAp(ap){
   if(ap.banco||!caso.convLegal)return [];
+  if(S&&S.leg&&!S.leg.ok)return ["ATENÇÃO: NÃO foi possível aplicar as conversões nas datas legais. "+(S.leg.msg||"As conversões lançadas pelo banco não correspondem, em número e fator, às datas legais da Tabela II.")+" Este apêndice usa as conversões COMO O BANCO LANÇOU. Revise as conversões na etapa “Ajustar digitação” antes de concluir o laudo."];
   var N=["Conversões monetárias aplicadas nas datas legais (Tabela II do laudo), com o saldo truncado nos centavos; a reprodução do banco (AP01) mantém as conversões como registradas."];
   ap.rows.forEach(function(r,i){if(r.reexp&&!ap.calc[i].recalc)N.push("* "+M.br(r.data)+" · "+r.desc+": valor do extrato "+fmt(r.valOrig)+", reexpresso "+r.reexp+" = "+fmt(r.val)+".");});
   return N;
