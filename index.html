@@ -1618,26 +1618,32 @@ window.addEventListener('message',async ev=>{
       if(resp.b64)baixarBase64(resp.b64,arquivo,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       motorResponder(ev.source,{t:'diligencia-pronta',reqId:d.reqId,ok:true,link:resp.link});
     }
-    else if(d.t==='gerar-laudo'){
+    else if(d.t==='laudo-dados'){
       if(!p)throw new Error('processo não encontrado');
-      if(/_SaqEsp_/.test(d.code||''))throw new Error('O modelo de saque específico (SaqEsp) ainda não foi criado.');
       const v=listaVaras.find(x=>x.nome===p.vara);
       const estado=(v&&v.estado)||estadoDeTribunal(p.tribunal);
       const dext=dataPorExtenso();
       const campos={
-        ENDERECAMENTO:montarEnderecamentoDilig(p).replace(/\.+$/,''),
-        PROCESSO:p.num, AUTORA:p.autor||'', ESTADO_TRIB:tituloCase(estado),
-        DATA_LAUDO:'Recife, '+dext+'.', DATA_LAUDO_SO:dext+'.',
+        ENDERECAMENTO:montarEnderecamentoDilig(p),               // 1ª frase completa, em MAIÚSCULAS, com ponto
+        PROCESSO:p.num, AUTORA:(p.autor||'').toUpperCase(),
+        VALOR_CEN1:(d.cen1!=null?'R$ '+valorBRExt(d.cen1):''),
+        VALOR_CEN2:(d.cen2!=null?'R$ '+valorBRExt(d.cen2):''),
         DATA_REF:d.dataRef?brDataISO(d.dataRef):'',
-        VALOR_CEN1:(d.cen1!=null?'R$ '+valorBRExt(d.cen1):''), VALOR_CEN1_SR:(d.cen1!=null?valorBRExt(d.cen1):''),
-        VALOR_CEN2:(d.cen2!=null?'R$ '+valorBRExt(d.cen2):''), VALOR_CEN2_SR:(d.cen2!=null?valorBRExt(d.cen2):'')
+        DATA_LAUDO:'Recife, '+dext+'.',
+        ESTADO_TRIB:tituloCase(estado)
       };
-      const proc=await driveAcharOuCriarSubpasta(p);
-      const sub=await driveSubpastaCalc(proc,true);
-      const arquivo=_sane(`Laudo - ${p.num} - ${p.autor||''}`)+'.docx';
-      const resp=await laudoPost({acao:'gerar_laudo',code:d.code,pastaId:sub,subpasta:'',arquivo,campos});
-      if(resp.b64)baixarBase64(resp.b64,arquivo,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      motorResponder(ev.source,{t:'laudo-pronto',reqId:d.reqId,ok:true,link:resp.link});
+      motorResponder(ev.source,{t:'laudo-dados',reqId:d.reqId,ok:true,campos});
+    }
+    else if(d.t==='baixar-modelo'){
+      await mlCarregarPastaModelos();
+      const m=MODELOS_LAUDO[d.code];
+      if(!m||!m.modelo)throw new Error('modelo '+d.code+' não encontrado na pasta de modelos de laudo');
+      const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${m.modelo}?alt=media&supportsAllDrives=true`,{headers:{Authorization:`Bearer ${accessToken}`}});
+      if(!rr.ok)throw new Error('HTTP '+rr.status+' ao baixar o modelo');
+      const buf=await rr.arrayBuffer();
+      const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(m.nomeModelo||(d.code+'.docx'));document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      motorResponder(ev.source,{t:'modelo-baixado',ok:true});
     }
     else if(d.t==='anexo-modelo'){
       await mlCarregarPastaModelos();
@@ -1652,7 +1658,7 @@ window.addEventListener('message',async ev=>{
       }
     }
   }catch(e){
-    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva','anexo-modelo':'anexo-modelo','gerar-diligencia':'diligencia-pronta','gerar-laudo':'laudo-pronto'}[d.t];
+    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva','anexo-modelo':'anexo-modelo','gerar-diligencia':'diligencia-pronta','laudo-dados':'laudo-dados','baixar-modelo':'modelo-baixado'}[d.t];
     if(tipo==='carregar')motorResponder(ev.source,{t:'carregar',caso:null,config:null,proc:p?{num:p.num,autor:p.autor,resp:p.perito_assistente}:{num:d.num}});
     else if(tipo)motorResponder(ev.source,{t:tipo,reqId:d.reqId,ok:false,erro:e.message});
     toast('Calculadora do PASEP: '+e.message,'error');
