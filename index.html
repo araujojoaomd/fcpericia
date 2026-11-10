@@ -996,6 +996,8 @@ const TJSE_SHEET_ID='1kOiDQxItEmDCskabHUYWkzxX6L90t678QTzGGDIGy5g';
 const PETICAO_API_URL='https://script.google.com/macros/s/AKfycbwQJ1Hwdjcqs6Q3p1wAfgCiZ8tkwxC_EeCA0I1qOlaBh2XnM-Us9D3O5aVEo5esBLW0/exec';
 // Gerador de DILIGÊNCIA (web app Apps Script SEPARADO). Cole aqui a URL /exec após publicar.
 const DILIGENCIA_API_URL='https://script.google.com/macros/s/AKfycbzmCoBc6iGChhvkXR0MR9KyNdl8CdmX0VkayZk_GWY97EkhC-BOFnMvAibuk593JuZcxQ/exec';
+// Gerador de LAUDO (web app Apps Script SEPARADO).
+const LAUDO_API_URL='https://script.google.com/macros/s/AKfycbxNme9SbjMnGVch3RxEyqmnnea4WNfdiF3ELNzvv017qUL6RZ9uQN8qaWdO0KdMFphs/exec';
 const MODELOS_FOLDER_ID='1-L-GR-ltRrugJburJIkwAFWgT59_LagT';
 const MODELOS_LAUDO_FOLDER_ID='1tswiSiA7EM3nFNMqyyqSjVPkkT5L2GgZ';
 const MODELOS_ANEXOS_FOLDER_ID='1nRMVgkf6aIWim6mZT0pllsShM_bqz5NO';
@@ -1616,6 +1618,27 @@ window.addEventListener('message',async ev=>{
       if(resp.b64)baixarBase64(resp.b64,arquivo,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       motorResponder(ev.source,{t:'diligencia-pronta',reqId:d.reqId,ok:true,link:resp.link});
     }
+    else if(d.t==='gerar-laudo'){
+      if(!p)throw new Error('processo não encontrado');
+      if(/_SaqEsp_/.test(d.code||''))throw new Error('O modelo de saque específico (SaqEsp) ainda não foi criado.');
+      const v=listaVaras.find(x=>x.nome===p.vara);
+      const estado=(v&&v.estado)||estadoDeTribunal(p.tribunal);
+      const dext=dataPorExtenso();
+      const campos={
+        ENDERECAMENTO:montarEnderecamentoDilig(p).replace(/\.+$/,''),
+        PROCESSO:p.num, AUTORA:p.autor||'', ESTADO_TRIB:tituloCase(estado),
+        DATA_LAUDO:'Recife, '+dext+'.', DATA_LAUDO_SO:dext+'.',
+        DATA_REF:d.dataRef?brDataISO(d.dataRef):'',
+        VALOR_CEN1:(d.cen1!=null?'R$ '+valorBRExt(d.cen1):''), VALOR_CEN1_SR:(d.cen1!=null?valorBRExt(d.cen1):''),
+        VALOR_CEN2:(d.cen2!=null?'R$ '+valorBRExt(d.cen2):''), VALOR_CEN2_SR:(d.cen2!=null?valorBRExt(d.cen2):'')
+      };
+      const proc=await driveAcharOuCriarSubpasta(p);
+      const sub=await driveSubpastaCalc(proc,true);
+      const arquivo=_sane(`Laudo - ${p.num} - ${p.autor||''}`)+'.docx';
+      const resp=await laudoPost({acao:'gerar_laudo',code:d.code,pastaId:sub,subpasta:'',arquivo,campos});
+      if(resp.b64)baixarBase64(resp.b64,arquivo,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      motorResponder(ev.source,{t:'laudo-pronto',reqId:d.reqId,ok:true,link:resp.link});
+    }
     else if(d.t==='anexo-modelo'){
       await mlCarregarPastaModelos();
       const a=MODELOS_ANEXO[d.tese];
@@ -1629,7 +1652,7 @@ window.addEventListener('message',async ev=>{
       }
     }
   }catch(e){
-    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva','anexo-modelo':'anexo-modelo','gerar-diligencia':'diligencia-pronta'}[d.t];
+    const tipo={pronto:'carregar',salvar:'salvo',arquivo:'arquivo-salvo','salvar-config':'config-salva','anexo-modelo':'anexo-modelo','gerar-diligencia':'diligencia-pronta','gerar-laudo':'laudo-pronto'}[d.t];
     if(tipo==='carregar')motorResponder(ev.source,{t:'carregar',caso:null,config:null,proc:p?{num:p.num,autor:p.autor,resp:p.perito_assistente}:{num:d.num}});
     else if(tipo)motorResponder(ev.source,{t:tipo,reqId:d.reqId,ok:false,erro:e.message});
     toast('Calculadora do PASEP: '+e.message,'error');
@@ -1685,6 +1708,40 @@ async function diligenciaPost(payload){
   if(!d.ok)throw new Error(d.erro||'Falha no gerador de diligência.');
   return d;
 }
+async function laudoPost(payload){
+  if(!LAUDO_API_URL)throw new Error('Configure a URL do gerador de laudo (LAUDO_API_URL) no index.html.');
+  const r=await fetch(LAUDO_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(!d.ok)throw new Error(d.erro||'Falha no gerador de laudo.');
+  return d;
+}
+function tituloCase(s){return String(s||'').toLowerCase().replace(/(^|[\s\-])([a-zà-ú])/g,(m,p,c)=>p+c.toUpperCase());}
+function brDataISO(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));return m?`${m[3]}/${m[2]}/${m[1]}`:String(iso||'');}
+function numeroBR(n){return Math.abs(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+// Valor por extenso em reais (até milhões). Para conferência humana (sai em amarelo).
+function extensoReais(n){
+  n=Math.round(Math.abs(n)*100);const reais=Math.floor(n/100),cent=n%100;
+  const U=['','um','dois','três','quatro','cinco','seis','sete','oito','nove'],
+        D10=['dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'],
+        D=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'],
+        C=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  function ate999(x){if(x===0)return '';if(x===100)return 'cem';let h=Math.floor(x/100),r=x%100,p=[];
+    if(h)p.push(C[h]);
+    if(r){if(r<10)p.push(U[r]);else if(r<20)p.push(D10[r-10]);else{let dd=Math.floor(r/10),uu=r%10;p.push(uu?D[dd]+' e '+U[uu]:D[dd]);}}
+    return p.join(' e ');}
+  function grp(x){if(x===0)return 'zero';let mi=Math.floor(x/1000000),mil=Math.floor((x%1000000)/1000),un=x%1000,p=[];
+    if(mi)p.push(ate999(mi)+(mi===1?' milhão':' milhões'));
+    if(mil)p.push(mil===1?'mil':ate999(mil)+' mil');
+    if(un)p.push(ate999(un));
+    if(p.length<=1)return p[0]||'';
+    let last=p.pop();let con=(un>0&&(un<100||un%100===0))?' e ':', ';return p.join(', ')+con+last;}
+  let partes=[];
+  if(reais)partes.push(grp(reais)+(reais===1?' real':' reais'));
+  if(cent)partes.push(grp(cent)+(cent===1?' centavo':' centavos'));
+  return partes.length?partes.join(' e '):'zero reais';
+}
+function valorBRExt(n){return numeroBR(n)+' ('+extensoReais(n)+')';}
 async function peticaoPost(payload){
   const r=await fetch(PETICAO_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
   if(!r.ok)throw new Error('HTTP '+r.status);

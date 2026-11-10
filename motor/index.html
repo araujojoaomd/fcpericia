@@ -1025,7 +1025,7 @@ var FONTE_R = "AAEAAAARAQAABAAQR0RFRpommb8ACCzoAAADgkdQT1P56crrAAgwbAABTKpHU1VCT
 var M = window.MotorPASEP;
 var ETAPAS = [
   {k:"imp",t:"Importar digitação"},{k:"dig",t:"Ajustar digitação"},{k:"saq",t:"Saques (Tema 1.300)"},
-  {k:"tes",t:"Teses do pedido"},{k:"res",t:"Apêndices"},{k:"dif",t:"Conferência",opc:true}];
+  {k:"tes",t:"Teses do pedido"},{k:"res",t:"Apêndices"},{k:"lau",t:"Laudo"},{k:"dif",t:"Conferência",opc:true}];
 var TESES = [["OFICIAL","Somente Tabela Oficial"],["EXP","Expurgos inflacionários"],["TJLP","TJLP ajustada pelo fator de redução"],["TJLP+EXP","Expurgos + TJLP ajustada"]];
 var EXP_TABIV = 351.97;
 var PRE1977 = {1972:[21.737,3,0,0],1973:[14.023,3,0,0],1974:[15.926,3,0,0],1975:[34.772,3,0,0],1976:[28.208,3,0,0]};
@@ -1098,7 +1098,7 @@ window.addEventListener("message",function(ev){
   }
   if(d.t==="salvo"){if(d.ok){NUVEM.ultimo=NUVEM.envio;NUVEM.pend=false;statusNuvem("Salvo no processo às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),"ok");if(JSON.stringify(caso)!==NUVEM.ultimo)agendarNuvem();}else statusNuvem("Não foi possível salvar no processo: "+(d.erro||"erro")+". Clique em “Salvar no processo”.","crit");}
   if(d.t==="salvar-agora"){if(NUVEM.carregado)salvarNuvem();return;}if(d.t==="arquivo-salvo")toast(d.ok?"Arquivo também salvo na pasta do processo no Drive.":"O arquivo foi baixado, mas não foi salvo no Drive: "+(d.erro||"erro"));
-  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));if(d.t==="diligencia-pronta"){var _b=document.getElementById("btDilGerar");if(_b){_b.disabled=false;_b.textContent="📄 Gerar diligência";}if(d.ok&&diligPend){caso.rows.forEach(function(r){r.diligenciado=false;if(r.diligData)delete r.diligData;});var _hj=new Date().toISOString().slice(0,10);caso.rows.forEach(function(r){if(diligPend.indexOf(r.id)>=0){r.diligenciado=true;r.diligData=_hj;}});diligPend=null;salvarLocal();render();}toast(d.ok?"Diligência gerada e salva na pasta do processo (Calculadora PASEP).":"Não foi possível gerar a diligência: "+(d.erro||"erro"));}
+  if(d.t==="config-salva")toast(d.ok?"Configuração salva como padrão da equipe no FC Perícia.":"Não foi possível salvar a configuração da equipe: "+(d.erro||"erro"));if(d.t==="diligencia-pronta"){var _b=document.getElementById("btDilGerar");if(_b){_b.disabled=false;_b.textContent="📄 Gerar diligência";}if(d.ok&&diligPend){caso.rows.forEach(function(r){r.diligenciado=false;if(r.diligData)delete r.diligData;});var _hj=new Date().toISOString().slice(0,10);caso.rows.forEach(function(r){if(diligPend.indexOf(r.id)>=0){r.diligenciado=true;r.diligData=_hj;}});diligPend=null;salvarLocal();render();}toast(d.ok?"Diligência gerada e salva na pasta do processo (Calculadora PASEP).":"Não foi possível gerar a diligência: "+(d.erro||"erro"));}if(d.t==="laudo-pronto"){var _bl=document.getElementById("btLaudoGerar");if(_bl){_bl.disabled=false;_bl.textContent="📄 Gerar laudo";}toast(d.ok?"Laudo gerado e salvo na pasta do processo (Calculadora PASEP).":"Não foi possível gerar o laudo: "+(d.erro||"erro"));}
 });
 window.addEventListener("beforeunload",function(e){if(EMB&&NUVEM.pend){salvarNuvem();e.preventDefault();e.returnValue="";}});
 var EMB=window.parent!==window&&/[?&]fc=1/.test(location.search),EMB_PROC=(location.search.match(/[?&]proc=([^&]*)/)||[])[1];EMB_PROC=EMB_PROC?decodeURIComponent(EMB_PROC):"";
@@ -1183,13 +1183,13 @@ function situacaoEtapas(){
   m[2]=!caso.saquesResp?"Responda se as alegações do autor pedem a desconsideração de saques.":caso.saquesResp==="sim"&&!nSaq?"Marque ao menos um saque a desconsiderar, ou mude a resposta.":"";
   d[3]=d[2]&&!!(caso.analise&&caso.analise.teseOk);
   m[3]=d[3]?"":"Escolha as teses pleiteadas nas alegações do autor.";
-  d[4]=d[3]&&!!caso.exportado;m[4]=d[4]?"":"Baixe os apêndices em PDF (ou a planilha) para concluir.";d[5]=d[3];m[5]="";
+  d[4]=d[3]&&!!caso.exportado;m[4]=d[4]?"":"Baixe os apêndices em PDF (ou a planilha) para concluir.";d[5]=d[3];m[5]="";d[6]=d[3];m[6]="";
   var resumo=[
     caso.rows.length?caso.rows.filter(function(r){return r.origem!=="incluida";}).length+" lançamentos":"Pendente",
     !caso.rows.length?"—":S.abertas.length?S.abertas.length+" pendência(s)":"Concluída",
     !caso.saquesResp?"A responder":caso.saquesResp==="sim"?nSaq+" desconsiderado(s)":caso.saquesResp==="generico"?"Pedido genérico":"Sem pedido",
     caso.analise&&caso.analise.teseOk?(TESES.filter(function(t){return t[0]===caso.analise.tese;})[0]||["",""])[1].replace("Somente ",""):"A escolher",
-    caso.exportado?"Exportados":plano().length+" apêndices","Opcional"];
+    caso.exportado?"Exportados":plano().length+" apêndices","Laudo","Opcional"];
   return {d:d,m:m,resumo:resumo};
 }
 function liberada(i,E){for(var k=0;k<i;k++)if(!E.d[k]&&!ETAPAS[k].opc&&ETAPAS[k].k!=="res")return false;return true;}
@@ -1220,20 +1220,20 @@ function render(){
       el("span",{class:"n",text:fez?"✓":String(i+1)}),el("span",{class:"t"},[el("b",{text:e.t}),el("span",{text:E.resumo[i]})])])]));
   });
   nav.append(ol);
-  ({imp:vImp,dig:vDig,saq:vSaq,tes:vTes,res:vRes,dif:vDif})[ESTADO.tab](v);
+  ({imp:vImp,dig:vDig,saq:vSaq,tes:vTes,res:vRes,lau:vLaudo,dif:vDif})[ESTADO.tab](v);
   /* barra de ação */
   var ant=idx>0?ETAPAS[idx-1]:null,prox=idx<ETAPAS.length-1?ETAPAS[idx+1]:null;
   bar.append(ant?el("button",{type:"button",class:"big",text:"← Voltar: "+ant.t,onclick:function(){irPara(ant.k);}}):el("span"));
   var ok=E.d[idx]||ETAPAS[idx].opc;
   bar.append(el("span",{class:"why"+(ok?"":" bad"),text:ok?(prox?"Etapa concluída. Siga para a próxima.":"Fim do passo a passo."):E.m[idx]}));
   if(ESTADO.tab==="res"){bar.append(el("button",{type:"button",class:"big",text:"Planilha (.xlsx)",onclick:exportar}));bar.append(el("button",{type:"button",class:"big",text:"Word (.docx)",onclick:function(){gerarDOCX(apendices());}}));bar.append(el("button",{type:"button",class:"big",text:"Só apêndices (PDF)",onclick:function(){gerarPDF(apendices());}}));bar.append(el("button",{type:"button",class:"big primary",text:"Apêndices + anexo (PDF)",onclick:function(){gerarPDFcomAnexo(apendices());}}));}
-  if(prox&&ESTADO.tab!=="res")bar.append(el("button",{type:"button",class:"big primary",disabled:!ok,text:"Avançar: "+prox.t+" →",onclick:function(){avisarConvLegal(prox);}}));
-  if(ESTADO.tab==="res")bar.append(el("button",{type:"button",class:"big",text:"Conferência (opcional) →",onclick:function(){irPara("dif");}}));
+  if(prox&&ESTADO.tab!=="lau")bar.append(el("button",{type:"button",class:"big primary",disabled:!ok,text:"Avançar: "+prox.t+" →",onclick:function(){avisarConvLegal(prox);}}));
+  if(ESTADO.tab==="lau")bar.append(el("button",{type:"button",class:"big",text:"Conferência (opcional) →",onclick:function(){irPara("dif");}}));
   rodape();
 }
 function rodape(){document.getElementById("foot").textContent="Anexo I (Tesouro Nacional), Anexo II (TJLP ajustada) e Tabela IV do laudo (expurgos; 1990/1991 = 351,97%) · cálculo local no navegador; nenhum dado é enviado · caso salvo automaticamente neste navegador.";}
 function cabecalho(n,titulo,texto,passos){
-  return el("div",{class:"stephead",style:"margin-bottom:14px"},[el("span",{class:"eyebrow",text:"Etapa "+n+" de 5"+(n===6?" · opcional":"")}),el("h2",{style:"font:600 1.35rem/1.25 var(--f-display)",text:titulo}),texto?el("p",{class:"muted",text:texto}):null,
+  return el("div",{class:"stephead",style:"margin-bottom:14px"},[el("span",{class:"eyebrow",text:"Etapa "+n+" de 6"+(n===7?" · opcional":"")}),el("h2",{style:"font:600 1.35rem/1.25 var(--f-display)",text:titulo}),texto?el("p",{class:"muted",text:texto}):null,
     passos?el("div",{class:"todo",style:"margin-top:8px"},[el("b",{text:"O que fazer nesta etapa"}),el("ol",{},passos.map(function(p){return el("li",{text:p});}))]):null]);
 }
 function vImp(v){
@@ -1738,9 +1738,38 @@ function exportar(){
   try{XLSX.writeFile(wb,nome);caso.exportado=new Date().toISOString();render();toast("Arquivo "+nome+" gerado.");}catch(e){toast("O download foi bloqueado neste ambiente. Use a versão em arquivo.");}
 }
 
+function vLaudo(v){
+  v.append(cabecalho(6,"Laudo pericial","O sistema identifica o modelo pela tese, pelo pedido de saques e pela diferença, e preenche os campos variáveis (em amarelo) com os dados do caso.",["Confira o modelo identificado e a diferença (com/sem).","Confira os valores dos cenários.","Clique em “Gerar laudo”."]));
+  if(bloqueio(v))return;
+  var teseKey=(caso.analise&&caso.analise.tese)||"OFICIAL";
+  var teseCode=({OFICIAL:"OF",TJLP:"TJLP",EXP:"EXP","TJLP+EXP":"EXP-TJLP"})[teseKey]||"OF";
+  var saqCode=({nao:"SemSaq",generico:"SaqGen",sim:"SaqEsp"})[caso.saquesResp||"nao"]||"SemSaq";
+  var saldoCen=function(key){var c=(S.cen||[]).filter(function(x){return x.key===key;})[0];return c&&c.calc&&c.calc.length?c.calc[c.calc.length-1].sf:null;};
+  var cen1=saldoCen("OFICIAL|ajustada");
+  var cen2=teseKey!=="OFICIAL"?saldoCen(teseKey+"|ajustada"):null;
+  if(ESTADO.laudoDif===undefined||ESTADO.laudoDif===null)ESTADO.laudoDif=(cen1!=null&&Math.abs(cen1)>=0.005)?"CD":"SD";
+  var difCode=ESTADO.laudoDif;
+  var code=teseCode+"_"+saqCode+"_"+difCode;
+  var ap=S.ap01&&S.ap01.linhas;var dataRef=ap&&ap.length?ap[ap.length-1].data:"";
+  var saqEsp=(saqCode==="SaqEsp");
+  var difSel=el("select",{"aria-label":"Diferença",onchange:function(e){ESTADO.laudoDif=e.target.value;render();}},[["CD","Com diferença na Tabela Oficial"],["SD","Sem diferença na Tabela Oficial"]].map(function(o){return el("option",{value:o[0],selected:o[0]===difCode,text:o[1]});}));
+  var kpis=[kpi("Tese",teseCode),kpi("Pedido de saques",saqCode,saqEsp?"p-warn":""),kpi("Diferença",difCode)];
+  var cenKpis=[kpi("Cenário 1 — Oficial (AP02)",cen1!=null?fmt(cen1):"—")];
+  if(cen2!=null)cenKpis.push(kpi("Cenário 2 — tese (AP03)",fmt(cen2)));
+  v.append(el("div",{class:"panel"},[
+    el("h2",{text:"Modelo identificado"}),
+    el("div",{class:"kpis",style:"margin-bottom:10px"},kpis),
+    el("p",{class:"legend",style:"margin:0 0 6px"},["Modelo: ",el("b",{text:code}),". A tese e o pedido de saques vêm das etapas anteriores; a diferença você ajusta aqui:"]),
+    el("div",{style:"margin:0 0 12px"},[difSel]),
+    el("div",{class:"kpis",style:"margin-bottom:10px"},cenKpis),
+    el("p",{class:"legend",style:"margin:0 0 10px",text:"Os valores são os saldos finais dos apêndices (a diferença em favor do autor, já que o Apêndice 01 zera a conta). O laudo sai com os campos do processo em amarelo, para sua conferência."}),
+    saqEsp?el("p",{class:"legend",style:"color:var(--crit);margin:0 0 10px",text:"O modelo de saque específico (SaqEsp) ainda não foi criado. Crie-o, ou ajuste o pedido de saques na etapa 3, para gerar o laudo."}):null,
+    el("div",{class:"btns"},[(EMB&&!saqEsp)?el("button",{type:"button",class:"primary",id:"btLaudoGerar",text:"📄 Gerar laudo",onclick:function(){var bt=document.getElementById("btLaudoGerar");if(bt){bt.disabled=true;bt.textContent="⏳ Gerando…";}fcPost({t:"gerar-laudo",num:EMB_PROC,reqId:"lau"+Date.now(),code:code,cen1:cen1,cen2:cen2,dataRef:dataRef});}}):el("span",{class:"legend",text:EMB?"":"A geração do laudo fica disponível dentro do FC Perícia."})])
+  ]));
+}
 function vDif(v){
   if(bloqueio(v))return;
-  v.append(cabecalho(6,"Conferência das diferenças","Etapa opcional: compare dois cenários e veja quais lançamentos explicam a diferença no saldo final.",null));
+  v.append(cabecalho(7,"Conferência das diferenças","Etapa opcional: compare dois cenários e veja quais lançamentos explicam a diferença no saldo final.",null));
   var opts=[{key:"AP01",nome:"AP01 · Reprodução do banco"}].concat(S.cen.map(function(c){return {key:c.key,nome:(numeroAp(c.key)||"—")+" · "+c.nome};}));
   if(!ESTADO.difB)ESTADO.difB=plano()[1].key;
   function pega(k){if(k==="AP01")return {calc:M.calcular(S.rowsRec,S.T,"banco","banco",CFG()),vf:M.valBanco};var c=S.cen.filter(function(x){return x.key===k;})[0];return {calc:c.calc,vf:c.camada==="saques"?M.valSaques:M.valAjustado};}
