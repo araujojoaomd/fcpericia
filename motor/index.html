@@ -1532,7 +1532,7 @@ function apendices(){
 }
 function convInfo(ap,i){
   var c=ap.calc[i],r=ap.rows[i];if(!c)return null;
-  if(!ap.banco&&r.origem==="conversao"&&r.semDivisao)return {txt:"Conversão ÷ 1 → NCz$ (data legal)",tipo:"legal"};
+  if(!ap.banco&&r.origem==="conversao"&&r.semDivisao){var mSD=M.moedas(ap.rows)[i];return {txt:"Conversão ÷ 1 → "+(mSD?mSD.registro.split(" ")[0]:"")+" (data legal)",tipo:"legal"};}
   if(c.div===1)return null;
   var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"",f=c.div===1000?"1.000":"2.750";
   if(!ap.banco&&r.origem==="conversao")return {txt:"Conversão ÷ "+f+" → "+nova+" (data legal)",tipo:"legal"};
