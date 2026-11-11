@@ -824,6 +824,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   var MARCOS = [
     { data: "1986-02-28", fator: 1000, cod: "6011", moeda: "Cruzado", eq: "Cz$ 1,00 = Cr$ 1.000,00" },
     { data: "1989-01-16", fator: 1000, cod: "6015", moeda: "Cruzado Novo", eq: "NCz$ 1,00 = Cz$ 1.000,00" },
+    { data: "1990-03-16", fator: 1, cod: "6011", moeda: "Cruzeiro", eq: "Cr$ 1,00 = NCz$ 1,00" },
     { data: "1993-08-01", fator: 1000, cod: "6015", moeda: "Cruzeiro Real", eq: "CR$ 1,00 = Cr$ 1.000,00" },
     { data: "1994-07-01", fator: 2750, cod: "1016", moeda: "Real", eq: "R$ 1,00 = CR$ 2.750,00" }
   ];
@@ -843,7 +844,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // Conversão do banco sem marco legal de mesmo fator = inconsistência real -> ok=false.
     conv.forEach(function (b, ci) { if (!usadoC[ci]) { ok = false; pares.push({ marco: null, banco: b, coincide: false }); } });
     // Marco legal sem conversão correspondente do banco = FALTANTE: não é aplicado (não distorce), mas vira alerta.
-    marcos.forEach(function (m, mi) { if (!usadoM[mi]) pares.push({ marco: m, banco: null, coincide: false, faltante: true }); });
+    marcos.forEach(function (m, mi) { if (!usadoM[mi]) pares.push(m.fator === 1 ? { marco: m, banco: null, coincide: false, semDivisao: true } : { marco: m, banco: null, coincide: false, faltante: true }); });
     pares.sort(function (a, b2) { var da = (a.banco && a.banco.data) || (a.marco && a.marco.data) || "", db = (b2.banco && b2.banco.data) || (b2.marco && b2.marco.data) || ""; return da < db ? -1 : da > db ? 1 : 0; });
     return { pares: pares, ok: ok };
   }
@@ -867,6 +868,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       br.conv = ""; br.aj = 0; br.convRetirada = true;
       ins.push({ data: m.data, row: { id: "conv-" + m.data, data: m.data, cod: m.cod, desc: "Conversão monetária na data legal: " + m.moeda + " (" + m.eq + ")",
         val: 0, conv: f === 2750 ? "÷2.750" : "÷1.000", aj: 0, origem: "conversao", trunc: true, zerado: false, saqueDesc: false } });
+    });
+    P.pares.forEach(function (p) {
+      if (!p.semDivisao || !p.marco) return;   /* troca de moeda sem divisao (fator 1): registra o evento, saldo mantido */
+      var m = p.marco;
+      ins.push({ data: m.data, row: { id: "conv-" + m.data, data: m.data, cod: m.cod, desc: "Conversão monetária na data legal: " + m.moeda + " (" + m.eq + ")",
+        val: 0, conv: "", aj: 0, origem: "conversao", semDivisao: true, trunc: false, zerado: false, saqueDesc: false } });
     });
     ins.forEach(function (x) {
       var pos = L.length; for (var i = 0; i < L.length; i++) if (L[i].data >= x.data) { pos = i; break; }
@@ -1282,7 +1289,7 @@ function vDig(v){
   var blocoAl=contadorDig("var(--warn)",nAl,"alerta(s)",nAl?cardsAl:el("p",{class:"legend",style:"margin:0",text:"Nenhum alerta."}));
   v.append(el("div",{style:"display:grid;gap:12px;margin-bottom:14px"},[el("div",{style:"display:flex;flex-wrap:wrap;gap:12px"},[blocoPend,blocoAl]),el("div",{class:"btns"},[el("button",{type:"button",class:"small",text:"Incluir uma linha manualmente",onclick:function(){pedirIncluir({});}}),el("span",{class:"legend",text:nIn+" linha(s) incluída(s) · "+nZ+" lançamento(s) zerado(s)"})])]));
   /* conversões monetárias */
-  var ctb=el("tbody");(S.leg?S.leg.pares:[]).forEach(function(p){ctb.append(el("tr",{},[el("td",{text:p.marco?p.marco.moeda+" ("+p.marco.eq+")":"—"}),el("td",{text:p.marco?M.br(p.marco.data):"—"}),el("td",{text:p.banco?M.br(p.banco.data)+" (÷ "+p.banco.fator.toLocaleString("pt-BR")+")":"não lançada"}),el("td",{},[p.coincide?pill("Banco = data legal","p-ok"):p.faltante?pill("Faltante — não aplicada","p-crit"):pill("Ajustada p/ data legal","p-warn")])]));});
+  var ctb=el("tbody");(S.leg?S.leg.pares:[]).forEach(function(p){ctb.append(el("tr",{},[el("td",{text:p.marco?p.marco.moeda+" ("+p.marco.eq+")":"—"}),el("td",{text:p.marco?M.br(p.marco.data):"—"}),el("td",{text:p.banco?M.br(p.banco.data)+" (÷ "+p.banco.fator.toLocaleString("pt-BR")+")":(p.semDivisao?"sem divisão (1:1)":"não lançada")}),el("td",{},[p.coincide?pill("Banco = data legal","p-ok"):p.semDivisao?pill("Registrada (sem divisão)","p-acc"):p.faltante?pill("Faltante — não aplicada","p-crit"):pill("Ajustada p/ data legal","p-warn")])]));});
   var ef=S.efeito?el("p",{class:"legend",style:"margin:0"},["Efeito no saldo final (Tabela Oficial, sem saques): conversões como o banco aplicou "+fmt(S.efeito.banco)+" · nas datas legais "+fmt(S.efeito.legal)+" · diferença "+fmt(S.efeito.legal-S.efeito.banco)+". A diferença vem apenas do arredondamento na conversão."]):null;
   var convOpt=el("div",{class:"pgrid"},[[false,"Como o banco aplicou","Os apêndices recalculados seguem os pontos de conversão do extrato."],[true,"Nas datas legais (Tabela II do laudo)","Os apêndices recalculados convertem na data legal, com o saldo truncado nos centavos; os lançamentos intermediários são reexpressos. O AP01 não muda."]].map(function(o){return el("label",{class:"opt"},[el("input",{type:"radio",name:"convLegal",id:"cl-"+o[0],checked:!!caso.convLegal===o[0],disabled:o[0]&&S.leg&&!S.leg.ok,onchange:function(){caso.convLegal=o[0];caso.log.push({quando:new Date().toISOString(),resp:caso.meta.resp||"(não informado)",tipo:"Conversões monetárias",data:"",cod:"",desc:o[1],just:""});render();}}),el("span",{},[el("b",{text:o[1]}),el("span",{class:"legend",style:"display:block",text:o[2]})])]);}));
   if(S.leg&&S.leg.pares.length)v.append(el("details",{class:"box",style:"margin-bottom:14px",open:S.leg.pares.some(function(p){return !p.coincide;})?true:null},[el("summary",{text:"Conversões monetárias: "+(caso.convLegal?"nas datas legais":"como o banco aplicou")+(S.leg.pares.some(function(p){return !p.coincide;})?" · há divergência entre o banco e as datas legais":"")}),
@@ -1292,7 +1299,7 @@ function vDig(v){
   var tb=el("tbody"),ncol=13;
   var faixas=[];(S.leg?S.leg.pares:[]).forEach(function(p){if(!p.marco||p.coincide)return;var pos=caso.rows.length;for(var q=0;q<caso.rows.length;q++)if(caso.rows[q].data>=p.marco.data){pos=q;break;}faixas.push({pos:pos,p:p});});
   function linhaLegal(f){var m=f.p.marco;
-    tb.append(el("tr",{class:"legal"+(f.p.faltante?" err":"")},[el("td",{colspan:String(ncol)},[(f.p.faltante?"⚠ ALERTA — ":"")+"Data legal da conversão: "+M.br(m.data)+" · "+m.moeda+" ("+m.eq+"). "+(f.p.faltante?"O banco NÃO lançou esta conversão; ela NÃO foi aplicada no recálculo. Revise se esta conta deveria ter essa conversão.":((f.p.banco?"O banco converteu em "+M.br(f.p.banco.data)+".":"")+(caso.convLegal?" Nos apêndices recalculados, a conversão é aplicada aqui (na data legal).":"")))])]));}
+    tb.append(el("tr",{class:"legal"+(f.p.faltante?" err":"")},[el("td",{colspan:String(ncol)},[(f.p.faltante?"⚠ ALERTA — ":"")+"Data legal da conversão: "+M.br(m.data)+" · "+m.moeda+" ("+m.eq+"). "+(f.p.semDivisao?"Troca de moeda sem divisão do saldo — registrada na data legal, sem alterar o valor.":(f.p.faltante?"O banco NÃO lançou esta conversão; ela NÃO foi aplicada no recálculo. Revise se esta conta deveria ter essa conversão.":((f.p.banco?"O banco converteu em "+M.br(f.p.banco.data)+".":"")+(caso.convLegal?" Nos apêndices recalculados, a conversão é aplicada aqui (na data legal).":""))))])]));}
   function linhaFantasma(f){
     tb.append(el("tr",{class:"ghost"},[el("td",{colspan:String(ncol-1)},["Falta aqui: "+f.p.msg]),el("td",{},[el("button",{type:"button",class:"small primary",text:"Incluir "+f.sg.cod,onclick:function(){pedirIncluir(f.sg);}})])]));
   }
@@ -1524,7 +1531,9 @@ function apendices(){
   });
 }
 function convInfo(ap,i){
-  var c=ap.calc[i],r=ap.rows[i];if(!c||c.div===1)return null;
+  var c=ap.calc[i],r=ap.rows[i];if(!c)return null;
+  if(!ap.banco&&r.origem==="conversao"&&r.semDivisao)return {txt:r.desc+" — sem divisão do saldo",tipo:"legal"};
+  if(c.div===1)return null;
   var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"",f=c.div===1000?"1.000":"2.750";
   if(!ap.banco&&r.origem==="conversao")return {txt:"Conversão ÷ "+f+" → "+nova+" (data legal)",tipo:"legal"};
   var coincide=false,P=M.paresConversao(caso.rows).pares;
@@ -1565,6 +1574,7 @@ function regraDe(c){if(c&&c.manual)return "Alteração manual do perito: "+trCur
 function pillTrat(c,r){if(r&&r.origem==="conversao")return el("span",{class:"pill p-acc",text:"Conversão (data legal)"});var t=c&&c.cat?c.cat:"BANCO",T=M.TRATAMENTOS[t];var s=el("span",{class:"pill "+(t==="BANCO"?"p-warn":"p-acc"),title:regraDe(c),text:T.curto});return s;}
 function memoria(ap,i){
   var c=ap.calc[i],r=ap.rows[i];
+  if(!ap.banco&&r.origem==="conversao"&&r.semDivisao)return {regra:"Conversão na data legal (Tabela II do laudo)",conta:"Troca de moeda sem divisão do saldo — saldo mantido = "+fmt(c.sf)};
   if(!ap.banco&&r.origem==="conversao")return {regra:"Conversão na data legal (Tabela II do laudo)",conta:"Saldo ÷ "+(c.div===1000?"1.000":"2.750")+", truncado nos centavos = "+fmt(c.sf)};
   if(ap.banco||!c.recalc)return {regra:ap.banco?regraTxt(c.regra):regraDe(c),conta:i===0?"Saldo inicial":(r.origem==="incluida"?"Linha incluída, sem tratamento: 0,00":r.reexp&&!ap.banco?"Valor do banco "+fmt(r.valOrig)+" reexpresso "+r.reexp+" = "+fmt(c.v):"Valor do banco: "+fmt(c.v))+(r.convRetirada&&!ap.banco?" · conversão do banco retirada desta linha":"")};
   var imp=pctf(c.im*100,5)+"%",t;
