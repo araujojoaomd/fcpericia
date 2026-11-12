@@ -1532,13 +1532,18 @@ function apendices(){
 }
 function convInfo(ap,i){
   var c=ap.calc[i],r=ap.rows[i];if(!c)return null;
-  if(!ap.banco&&r.origem==="conversao"&&r.semDivisao){var mSD=M.moedas(ap.rows)[i];return {txt:"Conversão ÷ 1 → "+(mSD?mSD.registro.split(" ")[0]:"")+" (data legal)",tipo:"legal"};}
-  if(c.div===1)return null;
-  var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"",f=c.div===1000?"1.000":"2.750";
-  if(!ap.banco&&r.origem==="conversao")return {txt:"Conversão ÷ "+f+" → "+nova+" (data legal)",tipo:"legal"};
-  var coincide=false,P=M.paresConversao(caso.rows).pares;
-  P.forEach(function(p){if(p.coincide&&p.banco&&p.banco.data===r.data)coincide=true;});
-  return {txt:"Conversão ÷ "+f+" → "+nova+(coincide?" (banco = data legal)":" (banco)"),tipo:"banco"};
+  var ehConv=r.origem==="conversao";
+  if(!ehConv&&c.div===1)return null;
+  var pares=M.paresConversao(caso.rows).pares,pair=null;
+  if(ehConv)pair=pares.filter(function(p){return p.marco&&p.marco.data===r.data;})[0];
+  else pair=pares.filter(function(p){return p.banco&&p.banco.data===r.data;})[0];
+  var dePara="";
+  if(pair&&pair.marco&&pair.marco.eq){var para=pair.marco.eq.split(" ")[0],resto=pair.marco.eq.split("= ")[1],de=resto?resto.split(" ")[0]:"";if(de&&para)dePara=de+" → "+para;}
+  if(!dePara){var mo=M.moedas(ap.rows)[i],nova=mo?mo.registro.split(" ")[0]:"";dePara="→ "+nova;}
+  var f=c.div===1000?"1.000":(c.div===2750?"2.750":"1");
+  if(!ap.banco&&ehConv)return {txt:"Conversão ÷ "+f+" "+dePara+" (data legal)",tipo:"legal"};
+  var coincide=false;pares.forEach(function(p){if(p.coincide&&p.banco&&p.banco.data===r.data)coincide=true;});
+  return {txt:"Conversão ÷ "+f+" "+dePara+(coincide?" (banco = data legal)":" (banco)"),tipo:"banco"};
 }
 function linhasAp(ap){
   return ap.rows.map(function(r,i){var c=ap.calc[i],p=c.pct,cv=convInfo(ap,i);
